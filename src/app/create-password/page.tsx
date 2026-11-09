@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSignUp, useUser } from '@clerk/nextjs';
-import { Lock, Eye, EyeOff, AlertCircle, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { getPasswordStrength, formatClerkPasswordError } from '@/lib/auth/password-strength';
 
 export default function CreatePasswordPage() {
   const { isLoaded: isSignUpLoaded, signUp, setActive } = useSignUp();
@@ -20,6 +20,8 @@ export default function CreatePasswordPage() {
   // Check if we have an active email signup in progress or a Google user who needs a password
   const isEmailSignup = isSignUpLoaded && signUp && signUp.verifications?.emailAddress?.status === 'verified';
   const isGoogleUser = isUserLoaded && user && !user.passwordEnabled;
+
+  const strength = getPasswordStrength(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,12 +69,7 @@ export default function CreatePasswordPage() {
       }
     } catch (err: any) {
       console.error('Password creation error:', err);
-      const msg =
-        err.errors?.[0]?.longMessage ||
-        err.errors?.[0]?.message ||
-        err.message ||
-        'Failed to set password. Please check security requirements and try again.';
-      setError(msg);
+      setError(formatClerkPasswordError(err));
     } finally {
       setLoading(false);
     }
@@ -126,6 +123,44 @@ export default function CreatePasswordPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+
+              {/* Password Strength Feedback */}
+              {password.length > 0 && (
+                <div className="mt-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-medium">Password strength:</span>
+                    <span
+                      className={`font-semibold ${
+                        strength.score === 1
+                          ? 'text-rose-600'
+                          : strength.score === 2
+                          ? 'text-amber-600'
+                          : strength.score === 3
+                          ? 'text-emerald-600'
+                          : 'text-green-700'
+                      }`}
+                    >
+                      {strength.label}
+                    </span>
+                  </div>
+
+                  {/* 4 Segment Progress Bar */}
+                  <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                    {[1, 2, 3, 4].map((seg) => (
+                      <div
+                        key={seg}
+                        className={`rounded-full transition-colors duration-300 ${
+                          strength.score >= seg ? strength.color : 'bg-slate-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    {strength.feedback}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -143,14 +178,20 @@ export default function CreatePasswordPage() {
               />
             </div>
 
-            {/* Password requirements */}
+            {/* Checklist items */}
             <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-[11px] text-slate-600">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className={`w-3.5 h-3.5 ${password.length >= 8 ? 'text-emerald-500' : 'text-slate-300'}`} />
+                <CheckCircle2
+                  className={`w-3.5 h-3.5 ${password.length >= 8 ? 'text-emerald-500' : 'text-slate-300'}`}
+                />
                 <span>At least 8 characters</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className={`w-3.5 h-3.5 ${password && password === confirmPassword ? 'text-emerald-500' : 'text-slate-300'}`} />
+                <CheckCircle2
+                  className={`w-3.5 h-3.5 ${
+                    password && password === confirmPassword ? 'text-emerald-500' : 'text-slate-300'
+                  }`}
+                />
                 <span>Passwords match</span>
               </div>
             </div>

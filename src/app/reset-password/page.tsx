@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSignIn } from '@clerk/nextjs';
 import { Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, ArrowLeft, RotateCw } from 'lucide-react';
+import { getPasswordStrength, formatClerkPasswordError } from '@/lib/auth/password-strength';
 
 export default function ResetPasswordPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -20,6 +21,8 @@ export default function ResetPasswordPage() {
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailDisplay, setEmailDisplay] = useState('');
+
+  const strength = getPasswordStrength(password);
 
   useEffect(() => {
     const paramEmail = searchParams.get('email');
@@ -81,19 +84,13 @@ export default function ResetPasswordPage() {
     } catch (err: any) {
       console.error('Password reset attempt error:', err);
       const codeError = err.errors?.[0];
-      let msg =
-        codeError?.longMessage ||
-        codeError?.message ||
-        err.message ||
-        'Failed to reset password. Please verify the code and try again.';
-
       if (codeError?.code === 'form_code_incorrect') {
-        msg = 'Incorrect verification code. Please check your inbox and try again.';
+        setError('Incorrect verification code. Please check your inbox and try again.');
       } else if (codeError?.code === 'verification_expired') {
-        msg = 'Verification code has expired. Please request a new code.';
+        setError('Verification code has expired. Please request a new code.');
+      } else {
+        setError(formatClerkPasswordError(err));
       }
-
-      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -215,6 +212,44 @@ export default function ResetPasswordPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+
+              {/* Password Strength Feedback */}
+              {password.length > 0 && (
+                <div className="mt-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-medium">Password strength:</span>
+                    <span
+                      className={`font-semibold ${
+                        strength.score === 1
+                          ? 'text-rose-600'
+                          : strength.score === 2
+                          ? 'text-amber-600'
+                          : strength.score === 3
+                          ? 'text-emerald-600'
+                          : 'text-green-700'
+                      }`}
+                    >
+                      {strength.label}
+                    </span>
+                  </div>
+
+                  {/* 4 Segment Progress Bar */}
+                  <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                    {[1, 2, 3, 4].map((seg) => (
+                      <div
+                        key={seg}
+                        className={`rounded-full transition-colors duration-300 ${
+                          strength.score >= seg ? strength.color : 'bg-slate-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    {strength.feedback}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -240,7 +275,7 @@ export default function ResetPasswordPage() {
 
             <button
               type="submit"
-              disabled={loading || !isLoaded}
+              disabled={loading || !isLoaded || password.length < 8 || password !== confirmPassword}
               className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#C84A22] hover:bg-[#b03e1b] text-white text-sm font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -271,4 +306,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-
