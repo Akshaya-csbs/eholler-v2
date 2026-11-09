@@ -50,18 +50,23 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      googleEmail: conn.email,
       accounts,
+      totalAccounts: accounts.length,
       locations: dbLocations,
+      totalLocations: dbLocations.length,
       activeLocationId: activeLocation?.id || null,
     });
   } catch (err: any) {
     console.error('Failed to retrieve GBP locations:', err);
+    const msg = err.message || 'Failed to retrieve locations from Google Business Profile API';
+    const isPermissionError = msg.toLowerCase().includes('denied') || msg.toLowerCase().includes('403') || msg.toLowerCase().includes('not enabled');
     return NextResponse.json(
       {
-        error: 'fetch_failed',
-        message: err.message || 'Failed to retrieve locations from Google Business Profile API',
+        error: isPermissionError ? 'permission_denied' : 'fetch_failed',
+        message: msg,
       },
-      { status: 500 }
+      { status: isPermissionError ? 403 : 500 }
     );
   }
 }

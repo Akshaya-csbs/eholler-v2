@@ -407,6 +407,13 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
                       </span>
                     </div>
 
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                      <span className="text-slate-500 font-medium">Discovered Locations:</span>
+                      <span className="font-semibold text-slate-800">
+                        {gbpStatus.totalLocationsCount ?? 0} {gbpStatus.totalLocationsCount === 1 ? 'Location' : 'Locations'}
+                      </span>
+                    </div>
+
                     <div className="flex items-start justify-between pt-1 border-t border-slate-200/60">
                       <span className="text-slate-500 font-medium">Selected Location:</span>
                       <div className="text-right">
@@ -456,6 +463,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
                     >
                       <MapPin className="w-3.5 h-3.5" />
                       <span>Switch Location</span>
+                    </button>
+                    <button
+                      onClick={() => fetchGbpStatus()}
+                      disabled={gbpLoading}
+                      title="Refresh Google Business Profile connection and locations"
+                      className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${gbpLoading ? 'animate-spin text-[#C84A22]' : ''}`} />
                     </button>
                     {gbpStatus.activeLocation && onSelectBusinessAudit && (
                       <button

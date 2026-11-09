@@ -149,12 +149,24 @@ export async function listGbpLocationsForAccount(
         const locality = loc.storefrontAddress?.locality || '';
         const adminArea = loc.storefrontAddress?.administrativeArea || '';
         const postalCode = loc.storefrontAddress?.postalCode || '';
-        const formattedAddr = [
+        let formattedAddr = [
           ...addressLines,
           [locality, adminArea, postalCode].filter(Boolean).join(', '),
         ]
           .filter(Boolean)
           .join(', ');
+
+        // Handle Service Area businesses without physical storefront addresses
+        if (!formattedAddr && loc.serviceArea) {
+          const placeNames = loc.serviceArea.places?.placeInfos
+            ?.map((p: any) => p.placeName)
+            .filter(Boolean) || [];
+          if (placeNames.length > 0) {
+            formattedAddr = `Service Area: ${placeNames.join(', ')}`;
+          } else {
+            formattedAddr = 'Service Area Business (No public storefront)';
+          }
+        }
 
         locations.push({
           accountName: account.name,

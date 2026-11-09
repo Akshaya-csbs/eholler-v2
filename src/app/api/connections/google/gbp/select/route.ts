@@ -21,23 +21,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Location not found' }, { status: 404 });
     }
 
-    // If location has a placeId or title, link or upsert a Business record in this organisation
+    // If location is not yet linked to a Business record, find or create one in this organisation
     let businessId = location.businessId;
-    if (!businessId && location.placeId) {
-      const existingBiz = await prisma.business.findFirst({
-        where: { organisationId: orgScope.organisationId, placeId: location.placeId },
-      });
+    if (!businessId) {
+      let existingBiz = null;
+      if (location.placeId) {
+        existingBiz = await prisma.business.findFirst({
+          where: { organisationId: orgScope.organisationId, placeId: location.placeId },
+        });
+      }
+      if (!existingBiz && location.locationTitle) {
+        existingBiz = await prisma.business.findFirst({
+          where: { organisationId: orgScope.organisationId, name: location.locationTitle },
+        });
+      }
+
       if (existingBiz) {
         businessId = existingBiz.id;
       } else {
         const newBiz = await orgScope.upsertBusiness({
           name: location.locationTitle,
-          placeId: location.placeId,
+          placeId: location.placeId || undefined,
           formattedAddress: location.address || undefined,
           phone: location.phoneNumber || undefined,
           websiteUrl: location.websiteUri || undefined,
           category: location.primaryCategory || undefined,
-          mapUrl: `https://www.google.com/maps/place/?q=place_id:${location.placeId}`,
+          mapUrl: location.placeId
+            ? `https://www.google.com/maps/place/?q=place_id:${location.placeId}`
+            : undefined,
         });
         businessId = newBiz.id;
       }
