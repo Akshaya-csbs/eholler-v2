@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
@@ -12,28 +12,32 @@ export interface UseAuthSyncResult {
 }
 
 /**
- * Calls /api/auth/sync exactly once per authenticated browser session.
+ * Calls /api/auth/sync safely when an authenticated Clerk user enters the application.
  *
- * Rules:
- * - Only fires when Clerk session is loaded and a userId is present.
- * - Skips if already synced in this session (uses sessionStorage flag).
- * - Provides retrySync() so the UI can offer a retry action on failure.
- * - Does NOT re-run on every render or component mount — it uses a ref guard
- *   plus a sessionStorage flag so navigation between tabs won't re-trigger it.
- * - Does NOT interfere with Google OAuth or any other API calls.
+ * Requirements & Guarantees:
+ * 1. User-Specific Synchronization: Keyed to the specific Clerk `userId` (`auth_synced_${userId}`).
+ * 2. Multi-User Tab Safety: If User A signs out and User B signs in within the same browser tab,
+ *    User B's distinct `userId` is detected and synchronized immediately.
+ * 3. Render Isolation: Will NOT fire on component re-renders. Uses `lastSyncedUserId` ref to guard against duplicate calls.
+ * 4. Resilient Retries: Exposes `retrySync()` to clear the user-specific flag and re-attempt sync.
+ * 5. Non-Blocking: Does not alter database schema or interfere with Google OAuth integrations.
  */
 export function useAuthSync(): UseAuthSyncResult {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Ref guard prevents double-invoke in React Strict Mode or concurrent renders
-  const hasFired = useRef(false);
+  // Ref tracks the specific Clerk userId that was last successfully dispatched or synced in this component lifecycle
+  const lastSyncedUserId = useRef<string | null>(null);
 
-  const runSync = async () => {
-    // Skip if already successfully synced this session
-    if (typeof window !== 'undefined' && sessionStorage.getItem('auth_synced') === '1') {
+  const getStorageKey = (uid: string) => `auth_synced_${uid}`;
+
+  const runSync = useCallback(async (targetUserId: string) => {
+    // Check if this specific user has already been synced in this session
+    if (typeof window !== 'undefined' && sessionStorage.getItem(getStorageKey(targetUserId)) === '1') {
+      lastSyncedUserId.current = targetUserId;
       setSyncStatus('synced');
+      setSyncError(null);
       return;
     }
 
@@ -48,48 +52,57 @@ export function useAuthSync(): UseAuthSyncResult {
       });
 
       if (res.ok) {
+        lastSyncedUserId.current = targetUserId;
         setSyncStatus('synced');
-        // Mark as synced so navigation doesn't re-trigger
+        setSyncError(null);
+
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('auth_synced', '1');
+          sessionStorage.setItem(getStorageKey(targetUserId), '1');
         }
       } else {
         const body = await res.json().catch(() => ({}));
         const msg = body?.error || `Sync failed (HTTP ${res.status})`;
+        lastSyncedUserId.current = null; // Allow retry on failure
         setSyncError(msg);
         setSyncStatus('error');
         console.error('[useAuthSync] Sync error:', msg);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Network error during sync';
+      lastSyncedUserId.current = null;
       setSyncError(msg);
       setSyncStatus('error');
       console.error('[useAuthSync] Sync fetch error:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Wait for Clerk to finish loading and confirm the user is signed in
-    if (!isLoaded || !isSignedIn) return;
-    // Ref guard: only fire once per component lifecycle
-    if (hasFired.current) return;
-    hasFired.current = true;
-
-    runSync();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
-
-  const retrySync = () => {
-    if (syncStatus === 'syncing') return;
-    hasFired.current = false;
-    // Clear the session flag so a forced retry actually re-runs
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('auth_synced');
+    // If not loaded or signed out, reset state
+    if (!isLoaded || !isSignedIn || !userId) {
+      lastSyncedUserId.current = null;
+      setSyncStatus('idle');
+      setSyncError(null);
+      return;
     }
-    hasFired.current = true;
-    runSync();
-  };
+
+    // If this specific user has already been initiated/synced in this lifecycle, do nothing (prevents re-render trigger)
+    if (lastSyncedUserId.current === userId) {
+      return;
+    }
+
+    // Mark as in-flight for this user ID to prevent concurrent or re-render calls
+    lastSyncedUserId.current = userId;
+    runSync(userId);
+  }, [isLoaded, isSignedIn, userId, runSync]);
+
+  const retrySync = useCallback(() => {
+    if (!userId) return;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(getStorageKey(userId));
+    }
+    lastSyncedUserId.current = null;
+    runSync(userId);
+  }, [userId, runSync]);
 
   return { syncStatus, syncError, retrySync };
 }
-
