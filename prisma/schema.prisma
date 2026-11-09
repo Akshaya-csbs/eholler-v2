@@ -41,6 +41,12 @@ enum ConnectionStatus {
   ERROR
 }
 
+enum GoogleServiceType {
+  SEARCH_CONSOLE
+  BUSINESS_PROFILE
+  ANALYTICS
+}
+
 enum AuditStatus {
   PENDING
   RUNNING
@@ -115,6 +121,7 @@ model Organisation {
   googleConnections          GoogleConnection[]
   searchConsoleProperties    SearchConsoleProperty[]
   analyticsProperties        AnalyticsProperty[]
+  gbpLocations               GbpLocation[]
   businessSources            BusinessSource[]
   auditRuns                  AuditRun[]
   sourceSnapshots            SourceSnapshot[]
@@ -166,6 +173,7 @@ model Business {
   sources                    BusinessSource[]
   auditRuns                  AuditRun[]
   gbpFieldAudits             GBPFieldAudit[]
+  gbpLocations               GbpLocation[]
   aiRecommendations          AIRecommendation[]
   sourceSnapshots            SourceSnapshot[]
   searchPerformanceSnapshots SearchPerformanceSnapshot[]
@@ -201,6 +209,7 @@ model BusinessSource {
 model GoogleConnection {
   id                    String                  @id @default(cuid())
   organisationId        String
+  service               GoogleServiceType       @default(SEARCH_CONSOLE)
   email                 String
   googleUserId          String?
   // Tokens are encrypted using AES-256-GCM before storage; never stored as plaintext
@@ -215,10 +224,41 @@ model GoogleConnection {
   organisation          Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   scProperties          SearchConsoleProperty[]
   gaProperties          AnalyticsProperty[]
+  gbpLocations          GbpLocation[]
 
-  @@unique([organisationId, email])
+  @@unique([organisationId, service])
   @@index([organisationId])
   @@index([status])
+}
+
+model GbpLocation {
+  id                 String            @id @default(cuid())
+  googleConnectionId String
+  organisationId     String
+  businessId         String?
+  accountName        String            // Google resource: "accounts/10987654321"
+  accountTitle       String?           // Account display name: "Acme Group"
+  locationName       String            // Google resource: "locations/1234567890"
+  locationTitle      String            // Location name: "Acme Plumbing - Downtown"
+  placeId            String?           // Google Maps Place ID (metadata.placeId)
+  storeCode          String?
+  address            String?
+  phoneNumber        String?
+  websiteUri         String?
+  primaryCategory    String?
+  isSelected         Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  googleConnection   GoogleConnection  @relation(fields: [googleConnectionId], references: [id], onDelete: Cascade)
+  organisation       Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  business           Business?         @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, locationName])
+  @@index([googleConnectionId])
+  @@index([organisationId])
+  @@index([placeId])
+  @@index([isSelected])
 }
 
 model SearchConsoleProperty {

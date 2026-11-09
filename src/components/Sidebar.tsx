@@ -115,7 +115,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom Nav */}
       <div className="p-4 border-t border-[#1E2B37] space-y-1">
         {user && (
-          <div className="px-3.5 py-2 mb-1 rounded-lg bg-[#16202A] border border-[#223140] flex items-center gap-2.5">
+          <div
+            onClick={() => setActiveTab('profile')}
+            className={`px-3.5 py-2 mb-1 rounded-lg border flex items-center gap-2.5 cursor-pointer transition ${
+              activeTab === 'profile'
+                ? 'bg-[#1C2836] border-[#C84A22] text-white shadow-xs'
+                : 'bg-[#16202A] border-[#223140] hover:border-slate-600'
+            }`}
+            title="View personal profile and integrations"
+          >
             <div className="w-7 h-7 rounded-full bg-[#C84A22] text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase">
               {user.firstName?.[0] || user.primaryEmailAddress?.emailAddress?.[0] || 'U'}
             </div>
@@ -129,9 +137,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         )}
-        <button className="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#1A2632] transition">
-          <Settings className="w-4 h-4" />
-          <span>Business Settings</span>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-sm transition ${
+            activeTab === 'profile'
+              ? 'bg-[#C84A22] text-white shadow-xs font-semibold'
+              : 'text-gray-400 hover:text-white hover:bg-[#1A2632]'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span>Account &amp; Profile</span>
         </button>
         <button
           onClick={() => signOut({ redirectUrl: '/sign-in' })}

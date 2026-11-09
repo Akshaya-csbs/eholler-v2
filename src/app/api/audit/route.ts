@@ -511,10 +511,28 @@ export async function POST(req: NextRequest) {
       auditEngineResult.inconsistentFields
     );
 
-    // 11. Complete AI-Powered Google Business Profile Audit (Mode A: Public Maps + Website)
+    // 11. Complete AI-Powered Google Business Profile Audit (Mode A: Public Maps or Mode B: Connected GBP)
     let gbpCompleteAudit = undefined;
+    let isGbpConnected = false;
     try {
-      gbpCompleteAudit = await executeGbpCompleteAudit(placeData, siteAudit, false);
+      const activeGbpLocation = await activeOrgScope.getSelectedGbpLocation();
+      if (activeGbpLocation) {
+        if (activeGbpLocation.placeId && placeData.id && activeGbpLocation.placeId === placeData.id) {
+          isGbpConnected = true;
+        } else if (
+          activeGbpLocation.locationTitle &&
+          placeData.displayName &&
+          activeGbpLocation.locationTitle.toLowerCase().trim() === placeData.displayName.toLowerCase().trim()
+        ) {
+          isGbpConnected = true;
+        }
+      }
+    } catch (locErr) {
+      console.warn('Could not determine GBP active location match:', locErr);
+    }
+
+    try {
+      gbpCompleteAudit = await executeGbpCompleteAudit(placeData, siteAudit, isGbpConnected);
     } catch (gbpErr: any) {
       console.error('[GBP Audit] executeGbpCompleteAudit failed:', gbpErr?.message || gbpErr);
       // Log but do NOT abort the full audit — the response will show a diagnostic state

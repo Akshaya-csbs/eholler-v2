@@ -10,6 +10,7 @@ import {
   RecommendationCategory,
   SeverityLevel,
   EffortLevel,
+  GoogleServiceType,
 } from '@prisma/client';
 
 /**
@@ -460,10 +461,10 @@ export function createOrgScope(organisationId: string) {
     },
 
     // ── Google Connection & Encrypted Token Management ──────────────────────
-    async getGoogleConnection() {
+    async getGoogleConnection(service: GoogleServiceType = GoogleServiceType.SEARCH_CONSOLE) {
       const conn = await prisma.googleConnection.findFirst({
-        where: { organisationId, status: ConnectionStatus.CONNECTED },
-        include: { scProperties: true, gaProperties: true },
+        where: { organisationId, service, status: ConnectionStatus.CONNECTED },
+        include: { scProperties: true, gaProperties: true, gbpLocations: true },
       });
 
       if (!conn) return null;
@@ -475,6 +476,10 @@ export function createOrgScope(organisationId: string) {
       };
     },
 
+    async getGbpConnection() {
+      return this.getGoogleConnection(GoogleServiceType.BUSINESS_PROFILE);
+    },
+
     async saveGoogleConnection(params: {
       email: string;
       accessToken: string;
@@ -482,19 +487,22 @@ export function createOrgScope(organisationId: string) {
       tokenExpiry?: Date;
       scopes: string[];
       googleUserId?: string;
+      service?: GoogleServiceType;
     }) {
+      const service = params.service || GoogleServiceType.SEARCH_CONSOLE;
       const encryptedAccessToken = encryptToken(params.accessToken);
       const encryptedRefreshToken = params.refreshToken ? encryptToken(params.refreshToken) : undefined;
 
       return prisma.googleConnection.upsert({
         where: {
-          organisationId_email: {
+          organisationId_service: {
             organisationId,
-            email: params.email,
+            service,
           },
         },
         create: {
           organisationId,
+          service,
           email: params.email,
           googleUserId: params.googleUserId,
           encryptedAccessToken,
@@ -504,6 +512,8 @@ export function createOrgScope(organisationId: string) {
           status: ConnectionStatus.CONNECTED,
         },
         update: {
+          email: params.email,
+          googleUserId: params.googleUserId,
           encryptedAccessToken,
           ...(encryptedRefreshToken ? { encryptedRefreshToken } : {}),
           tokenExpiry: params.tokenExpiry,
@@ -516,9 +526,102 @@ export function createOrgScope(organisationId: string) {
 
     async disconnectGoogle() {
       return prisma.googleConnection.updateMany({
-        where: { organisationId },
+        where: { organisationId, service: GoogleServiceType.SEARCH_CONSOLE },
         data: { status: ConnectionStatus.REVOKED },
       });
+    },
+
+    async disconnectGbp() {
+      return prisma.googleConnection.updateMany({
+        where: { organisationId, service: GoogleServiceType.BUSINESS_PROFILE },
+        data: { status: ConnectionStatus.REVOKED },
+      });
+    },
+
+    // ── Google Business Profile Locations ──────────────────────────────────
+    async listGbpLocations() {
+      return prisma.gbpLocation.findMany({
+        where: { organisationId },
+        orderBy: { locationTitle: 'asc' },
+      });
+    },
+
+    async getSelectedGbpLocation() {
+      return prisma.gbpLocation.findFirst({
+        where: { organisationId, isSelected: true },
+      });
+    },
+
+    async selectGbpLocation(locationId: string, businessId?: string) {
+      return prisma.$transaction([
+        prisma.gbpLocation.updateMany({
+          where: { organisationId, isSelected: true },
+          data: { isSelected: false },
+        }),
+        prisma.gbpLocation.update({
+          where: { id: locationId },
+          data: {
+            isSelected: true,
+            ...(businessId ? { businessId } : {}),
+          },
+        }),
+      ]);
+    },
+
+    async upsertGbpLocations(
+      googleConnectionId: string,
+      locations: Array<{
+        accountName: string;
+        accountTitle?: string;
+        locationName: string;
+        locationTitle: string;
+        placeId?: string;
+        storeCode?: string;
+        address?: string;
+        phoneNumber?: string;
+        websiteUri?: string;
+        primaryCategory?: string;
+      }>
+    ) {
+      const results = [];
+      for (const loc of locations) {
+        const item = await prisma.gbpLocation.upsert({
+          where: {
+            organisationId_locationName: {
+              organisationId,
+              locationName: loc.locationName,
+            },
+          },
+          create: {
+            organisationId,
+            googleConnectionId,
+            accountName: loc.accountName,
+            accountTitle: loc.accountTitle,
+            locationName: loc.locationName,
+            locationTitle: loc.locationTitle,
+            placeId: loc.placeId,
+            storeCode: loc.storeCode,
+            address: loc.address,
+            phoneNumber: loc.phoneNumber,
+            websiteUri: loc.websiteUri,
+            primaryCategory: loc.primaryCategory,
+            isSelected: false,
+          },
+          update: {
+            googleConnectionId,
+            accountTitle: loc.accountTitle,
+            locationTitle: loc.locationTitle,
+            placeId: loc.placeId,
+            storeCode: loc.storeCode,
+            address: loc.address,
+            phoneNumber: loc.phoneNumber,
+            websiteUri: loc.websiteUri,
+            primaryCategory: loc.primaryCategory,
+          },
+        });
+        results.push(item);
+      }
+      return results;
     },
 
     // ── Search Console Properties ───────────────────────────────────────────

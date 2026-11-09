@@ -15,6 +15,7 @@ import { ConnectGscModal } from '@/components/ConnectGscModal';
 import { GbpAuditView } from '@/components/GbpAuditView';
 import { WebsiteSeoView } from '@/components/WebsiteSeoView';
 import { AuditHistoryView } from '@/components/AuditHistoryView';
+import { UserProfileView } from '@/components/UserProfileView';
 import { AuditResponse, BusinessInput, GooglePlaceData, GscAnalyticsResult } from '@/lib/types';
 import { emptySearchConsoleMetrics, metricsFromAnalytics } from '@/lib/gsc-metrics';
 import {
@@ -362,6 +363,18 @@ export default function DashboardPage() {
                 Resolving Places data, evaluating 57 GBP fields, crawling subpages for NAP &amp; Schema markup, and generating draft AI recommendations.
               </p>
             </div>
+          ) : activeTab === 'profile' ? (
+            <UserProfileView
+              onOpenGscModal={() => setIsGscModalOpen(true)}
+              gscConnected={gscConnected}
+              gscProperty={gscProperty}
+              onSelectBusinessAudit={(placeId: string, name: string) => {
+                runAudit({
+                  businessName: name,
+                  mapUrl: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+                });
+              }}
+            />
           ) : !data ? (
             /* Clean Empty State: No business selected yet */
             <div className="space-y-6">
