@@ -51,7 +51,7 @@ export default function CreatePasswordPage() {
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('signup_email');
           }
-          router.push('/');
+          router.push('/complete-profile');
         } else {
           setError('Account setup is pending additional verification.');
         }

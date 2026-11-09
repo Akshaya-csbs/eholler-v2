@@ -9,6 +9,7 @@ export interface UseAuthSyncResult {
   syncStatus: SyncStatus;
   syncError: string | null;
   retrySync: () => void;
+  isProfileCompleted: boolean | null;
 }
 
 /**
@@ -26,11 +27,13 @@ export function useAuthSync(): UseAuthSyncResult {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isProfileCompleted, setIsProfileCompleted] = useState<boolean | null>(null);
 
   // Ref tracks the specific Clerk userId that was last successfully dispatched or synced in this component lifecycle
   const lastSyncedUserId = useRef<string | null>(null);
 
   const getStorageKey = (uid: string) => `auth_synced_${uid}`;
+  const getProfileStorageKey = (uid: string) => `profile_completed_${uid}`;
 
   const runSync = useCallback(async (targetUserId: string) => {
     // Check if this specific user has already been synced in this session
@@ -38,6 +41,10 @@ export function useAuthSync(): UseAuthSyncResult {
       lastSyncedUserId.current = targetUserId;
       setSyncStatus('synced');
       setSyncError(null);
+      const cachedProfile = sessionStorage.getItem(getProfileStorageKey(targetUserId));
+      if (cachedProfile !== null) {
+        setIsProfileCompleted(cachedProfile === '1');
+      }
       return;
     }
 
@@ -52,12 +59,16 @@ export function useAuthSync(): UseAuthSyncResult {
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const completed = Boolean(data?.isProfileCompleted);
         lastSyncedUserId.current = targetUserId;
         setSyncStatus('synced');
         setSyncError(null);
+        setIsProfileCompleted(completed);
 
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(getStorageKey(targetUserId), '1');
+          sessionStorage.setItem(getProfileStorageKey(targetUserId), completed ? '1' : '0');
         }
       } else {
         const body = await res.json().catch(() => ({}));
@@ -104,5 +115,5 @@ export function useAuthSync(): UseAuthSyncResult {
     runSync(userId);
   }, [userId, runSync]);
 
-  return { syncStatus, syncError, retrySync };
+  return { syncStatus, syncError, retrySync, isProfileCompleted };
 }

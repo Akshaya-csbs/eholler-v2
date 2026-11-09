@@ -130,13 +130,17 @@ export async function listGbpLocationsForAccount(
       });
 
       if (res.status === 403) {
-        console.warn(`[GBP API] Permission denied for account ${account.name}`);
-        break;
+        const errorDetail = res.data?.error?.message || 'Access denied';
+        console.warn(`[GBP API] Permission denied for account ${account.name}:`, errorDetail);
+        throw new Error(
+          `Google Business Profile API access denied for account "${account.accountName}": ${errorDetail}. Please ensure My Business Business Information API is enabled in your Google Cloud Console.`
+        );
       }
 
       if (res.status >= 400) {
-        console.warn(`[GBP API] Error fetching locations for ${account.name}: HTTP ${res.status}`);
-        break;
+        const errorDetail = res.data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`[GBP API] Error fetching locations for ${account.name}:`, errorDetail);
+        throw new Error(`Failed to fetch locations for account "${account.accountName}": ${errorDetail}`);
       }
 
       const rawLocations = res.data?.locations || [];
@@ -172,7 +176,7 @@ export async function listGbpLocationsForAccount(
     return locations;
   } catch (err: any) {
     console.error(`[GBP API] Error listing locations for account ${account.name}:`, err.message);
-    return [];
+    throw err;
   }
 }
 

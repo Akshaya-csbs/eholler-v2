@@ -20,8 +20,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(home);
   }
 
+  const from = req.nextUrl.searchParams.get('from');
   // Prefix state with 'gbp_' so the shared callback can immediately route to the GBP handler
-  const state = `gbp_${crypto.randomBytes(24).toString('hex')}`;
+  const state = from === 'onboarding'
+    ? `gbp_onboarding_${crypto.randomBytes(20).toString('hex')}`
+    : `gbp_${crypto.randomBytes(24).toString('hex')}`;
   const redirectUri = getGbpRedirectUri(req);
 
   const params = new URLSearchParams({

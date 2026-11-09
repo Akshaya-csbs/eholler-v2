@@ -21,8 +21,13 @@ import {
   MapPin,
   ChevronRight,
   Store,
+  Pencil,
+  Briefcase,
+  Phone,
+  Globe,
 } from 'lucide-react';
 import { GbpLocationModal } from './GbpLocationModal';
+import { EditProfileModal } from './EditProfileModal';
 
 interface GbpConnectionStatus {
   connected: boolean;
@@ -59,6 +64,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
     googleEmail: null,
     activeLocation: null,
   });
+  const [profileData, setProfileData] = useState<{
+    id?: string;
+    name: string | null;
+    email: string;
+    phoneNumber?: string | null;
+    jobTitle?: string | null;
+    companyName?: string | null;
+    country?: string | null;
+    avatarUrl?: string | null;
+    isProfileCompleted?: boolean;
+  } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [gbpLoading, setGbpLoading] = useState<boolean>(true);
   const [disconnecting, setDisconnecting] = useState<boolean>(false);
   const [isGbpModalOpen, setIsGbpModalOpen] = useState<boolean>(false);
@@ -86,8 +103,21 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
     }
   };
 
+  // Fetch personal profile details
+  const fetchUserProfile = async () => {
+    try {
+      const res = await axios.get('/api/user/profile');
+      if (res.data?.profile) {
+        setProfileData(res.data.profile);
+      }
+    } catch (err) {
+      console.warn('Could not fetch user profile:', err);
+    }
+  };
+
   useEffect(() => {
     fetchGbpStatus();
+    fetchUserProfile();
 
     // Check for query parameters indicating fresh OAuth return
     if (typeof window !== 'undefined') {
@@ -213,7 +243,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-900">{fullName}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{profileData?.name || fullName}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-[#C84A22] border border-orange-200">
                   Eholler Account
                 </span>
@@ -230,6 +260,13 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-2xs"
+            >
+              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              <span>Edit Profile</span>
+            </button>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>Email Verified</span>
@@ -270,10 +307,52 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
             </div>
             <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>Primary Workspace</span>
+              <span>{profileData?.companyName || 'Primary Workspace'}</span>
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
               Multi-tenant data isolation enabled
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Role &amp; Company
+            </div>
+            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+              <span>
+                {profileData?.jobTitle || 'Role not specified'}
+                {profileData?.companyName ? ` · ${profileData.companyName}` : ''}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {profileData?.companyName ? 'Organization affiliation' : 'Personal account'}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Contact Phone
+            </div>
+            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-slate-500" />
+              <span>{profileData?.phoneNumber || 'Not provided'}</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              Direct member communication
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Country / Region
+            </div>
+            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-slate-500" />
+              <span>{profileData?.country || 'Not specified'}</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              Regional localization
             </div>
           </div>
         </div>
@@ -494,6 +573,25 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
         onClose={() => setIsGbpModalOpen(false)}
         onLocationSelected={handleLocationSelected}
         currentActiveLocationId={gbpStatus.activeLocation?.id || null}
+      />
+
+      {/* Edit Personal Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        currentProfile={
+          profileData || {
+            name: fullName,
+            email: primaryEmail,
+          }
+        }
+        onProfileUpdated={(updated) => {
+          setProfileData(updated);
+          setFeedbackMessage({
+            type: 'success',
+            text: 'Personal profile updated successfully.',
+          });
+        }}
       />
     </div>
   );

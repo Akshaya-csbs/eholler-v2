@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { useAuthSync } from '@/hooks/useAuthSync';
 import { Sidebar } from '@/components/Sidebar';
@@ -45,9 +46,20 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
+  const router = useRouter();
+
   // Sync the authenticated Clerk user to the Neon PostgreSQL database once on load.
   // Runs exactly once per session; does not block the dashboard from rendering.
-  const { syncStatus, syncError, retrySync } = useAuthSync();
+  const { syncStatus, syncError, retrySync, isProfileCompleted } = useAuthSync();
+
+  // If user has not completed their personal profile, redirect to onboarding completion
+  useEffect(() => {
+    if (syncStatus === 'synced' && isProfileCompleted === false) {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('profile_completed') !== '1') {
+        router.push('/complete-profile');
+      }
+    }
+  }, [syncStatus, isProfileCompleted, router]);
 
   // Modals state
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);

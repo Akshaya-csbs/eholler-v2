@@ -102,7 +102,12 @@ export async function GET(req: NextRequest) {
         console.warn('Could not fetch Google UserInfo for GBP connection:', uiErr);
       }
 
-      const success = NextResponse.redirect(redirectHome(req, { activeTab: 'profile', gbp: 'connected' }));
+      const isOnboarding = state.startsWith('gbp_onboarding_');
+      const redirectParams: Record<string, string> = { activeTab: 'profile', gbp: 'connected' };
+      if (isOnboarding) {
+        redirectParams.onboarding = 'complete';
+      }
+      const success = NextResponse.redirect(redirectHome(req, redirectParams));
       applyGbpTokenCookies(
         {
           access_token: tokenRes.data.access_token,

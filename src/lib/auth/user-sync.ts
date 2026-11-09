@@ -9,6 +9,11 @@ export interface SyncedUser {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  phoneNumber?: string | null;
+  jobTitle?: string | null;
+  companyName?: string | null;
+  country?: string | null;
+  isProfileCompleted: boolean;
   organisationId: string;
 }
 
@@ -46,7 +51,7 @@ export async function syncCurrentUser(): Promise<SyncedUser | null> {
   const avatarUrl = clerkUser.imageUrl || null;
 
   // 1. Try finding existing user by clerkId or verified email
-  const existingUser = await (prisma.user as any).findFirst({
+  const existingUser = await prisma.user.findFirst({
     where: {
       OR: [
         { clerkId: clerkUser.id },
@@ -58,10 +63,10 @@ export async function syncCurrentUser(): Promise<SyncedUser | null> {
     },
   });
 
-  let dbUserId: string;
+  let userRecord: any;
 
   if (existingUser) {
-    dbUserId = existingUser.id;
+    userRecord = existingUser;
 
     // Link clerkId if not already set, and keep profile details fresh
     const updates: Record<string, any> = {};
@@ -76,23 +81,25 @@ export async function syncCurrentUser(): Promise<SyncedUser | null> {
     }
 
     if (Object.keys(updates).length > 0) {
-      await (prisma.user as any).update({
+      userRecord = await prisma.user.update({
         where: { id: existingUser.id },
         data: updates,
       });
     }
   } else {
     // 2. Create new user safely
-    const createdUser = await (prisma.user as any).create({
+    userRecord = await prisma.user.create({
       data: {
         clerkId: clerkUser.id,
         email: normalizedEmail,
         name: fullName,
         avatarUrl,
+        isProfileCompleted: false,
       },
     });
-    dbUserId = createdUser.id;
   }
+
+  const dbUserId = userRecord.id;
 
   // 3. Ensure primary workspace organisation membership
   const defaultOrg = await getOrCreateDefaultOrganisation();
@@ -124,8 +131,13 @@ export async function syncCurrentUser(): Promise<SyncedUser | null> {
     id: dbUserId,
     clerkId: clerkUser.id,
     email: normalizedEmail,
-    name: fullName,
-    avatarUrl,
+    name: userRecord.name,
+    avatarUrl: userRecord.avatarUrl,
+    phoneNumber: userRecord.phoneNumber,
+    jobTitle: userRecord.jobTitle,
+    companyName: userRecord.companyName,
+    country: userRecord.country,
+    isProfileCompleted: Boolean(userRecord.isProfileCompleted),
     organisationId: defaultOrg.id,
   };
 }

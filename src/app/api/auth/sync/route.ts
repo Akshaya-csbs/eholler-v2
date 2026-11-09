@@ -52,6 +52,7 @@ export async function GET() {
         synced: true,
         userId: syncedUser.id,
         organisationId: syncedUser.organisationId,
+        isProfileCompleted: syncedUser.isProfileCompleted,
       },
       { status: 200 }
     );
