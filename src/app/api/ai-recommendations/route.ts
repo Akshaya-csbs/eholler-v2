@@ -271,3 +271,97 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * GET /api/ai-recommendations
+ * Lists persisted recommendations for the organization with optional status / priority filters.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const orgIdHeader = req.headers.get('x-organisation-id');
+    const { resolveOrgScope } = await import('@/lib/db/default-org');
+    const orgScope = await resolveOrgScope(orgIdHeader);
+
+    const { searchParams } = new URL(req.url);
+    const auditRunId = searchParams.get('auditRunId') || undefined;
+    const businessId = searchParams.get('businessId') || undefined;
+    const statusParam = searchParams.get('status') || undefined;
+    const severityParam = searchParams.get('severity') || undefined;
+
+    const recommendations = await orgScope.listRecommendations({
+      auditRunId,
+      businessId,
+      status: statusParam as any,
+      severity: severityParam as any,
+    });
+
+    return NextResponse.json({
+      recommendations: recommendations.map((r) => ({
+        id: r.id,
+        auditRunId: r.auditRunId,
+        businessId: r.businessId,
+        businessName: r.business.name,
+        issueTitle: r.issueTitle,
+        category: r.category.toLowerCase(),
+        evidence: r.evidence,
+        severity: r.severity.toLowerCase(),
+        explanation: r.explanation,
+        recommendedAction: r.recommendedAction,
+        suggestedContent: r.suggestedContent || undefined,
+        estimatedEffort: r.estimatedEffort.toLowerCase(),
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+    });
+  } catch (err: any) {
+    console.error('Error fetching recommendations:', err);
+    return NextResponse.json(
+      { error: err.message || 'Failed to fetch recommendations' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/ai-recommendations
+ * Updates the status of a recommendation (PENDING, IN_PROGRESS, COMPLETED, DISMISSED, DRAFT).
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const orgIdHeader = req.headers.get('x-organisation-id');
+    const { resolveOrgScope } = await import('@/lib/db/default-org');
+    const orgScope = await resolveOrgScope(orgIdHeader);
+
+    const body = await req.json();
+    const { id, status } = body;
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ error: 'Recommendation id is required' }, { status: 400 });
+    }
+
+    const validStatuses = ['DRAFT', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'DISMISSED', 'APPROVED', 'REJECTED'];
+    if (!status || !validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    const updated = await orgScope.updateRecommendationStatus(id, status as any);
+
+    return NextResponse.json({
+      success: true,
+      recommendation: {
+        id: updated.id,
+        status: updated.status,
+        updatedAt: updated.updatedAt,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error updating recommendation status:', err);
+    return NextResponse.json(
+      { error: err.message || 'Failed to update recommendation status' },
+      { status: 500 }
+    );
+  }
+}
