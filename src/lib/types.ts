@@ -74,6 +74,7 @@ export interface WebsiteAuditData {
   subpagesCrawled?: Array<{
     url: string;
     title?: string;
+    metaDescription?: string;
     type: 'contact' | 'about' | 'services' | 'location' | 'other';
     statusCode?: number;
   }>;
@@ -84,6 +85,19 @@ export interface WebsiteAuditData {
     detectedPhone?: string;
     detectedAddress?: string;
   };
+  // Phase 5 Enhanced Crawler & Security Signals
+  sitemapUrl?: string;
+  sitemapStatus?: string;
+  hasViewportMeta?: boolean;
+  viewportContent?: string;
+  brokenInternalLinks?: Array<{ url: string; statusCode: number }>;
+  duplicateTitlesFound?: boolean;
+  duplicateDescriptionsFound?: boolean;
+  technicalScore?: number;
+  onPageScore?: number;
+  scoreDeductions?: Array<{ category: string; reason: string; points: number }>;
+  ssrfBlocked?: boolean;
+  ssrfReason?: string;
 }
 
 export type GbpFieldStatus =
@@ -300,6 +314,18 @@ export interface AuditResponse {
     citationFixes: number;
     reviewGrowth: number;
     keywordRankings: number;
+    // Transparent component scores
+    websiteScore?: number;
+    technicalScore?: number;
+    onPageScore?: number;
+    localRelevanceScore?: number;
+    reviewScore?: number;
+    scoreBreakdown?: Array<{
+      category: string;
+      score: number;
+      weight: string;
+      deductions: string[];
+    }>;
   };
   searchConsole: SearchConsoleMetrics;
   priorityActions: AuditFinding[];
@@ -320,6 +346,7 @@ export interface AuditResponse {
 }
 
 export interface StructuredRecommendation {
+  id?: string;
   issueTitle: string;
   category:
     | 'missing_seo_field'
@@ -335,6 +362,54 @@ export interface StructuredRecommendation {
   recommendedAction: string;
   suggestedContent?: string;
   estimatedEffort: 'quick_win' | 'moderate' | 'significant';
+  status?: 'DRAFT' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DISMISSED';
+  stepByStepInstructions?: string[];
+  expectedBenefit?: string;
+  relatedAuditFinding?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SharedReportData {
+  id: string;
+  shareToken: string;
+  title: string;
+  businessName: string;
+  businessAddress: string;
+  businessCity: string;
+  websiteUrl: string;
+  auditDate: string;
+  overallScore: number;
+  scores: {
+    authorityScore: number;
+    gbpHealth: number;
+    websiteScore?: number;
+    technicalScore?: number;
+    onPageScore?: number;
+    reviewScore?: number;
+  };
+  gbpAudit?: GbpCompleteAuditResult;
+  websiteAudit?: WebsiteAuditData;
+  competitors: CompetitorItem[];
+  recommendations: StructuredRecommendation[];
+  isRevoked: boolean;
+  expiresAt?: string;
+}
+
+export interface Ga4AnalyticsResult {
+  propertyId: string;
+  propertyName?: string;
+  startDate: string;
+  endDate: string;
+  activeUsers: number;
+  sessions: number;
+  engagedSessions: number;
+  engagementRate: number;
+  conversions: number;
+  topLandingPages: Array<{ pagePath: string; sessions: number; activeUsers: number }>;
+  channelGrouping: Array<{ channel: string; sessions: number; percentage: number }>;
+  deviceBreakdown: Array<{ deviceCategory: string; sessions: number; percentage: number }>;
+  geoBreakdown: Array<{ country: string; city: string; activeUsers: number }>;
 }
 
 export interface AIRecommendationRequest {

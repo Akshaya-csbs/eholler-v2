@@ -20,6 +20,7 @@ import {
   Lock,
   Zap,
   PlusCircle,
+  FileText,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,14 +47,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, locked: false },
     { id: 'profile-opt', label: 'GBP Profile Audit', icon: FileCheck2, locked: false },
     { id: 'website-seo', label: 'Website SEO & NAP', icon: Globe, locked: false },
-    { id: 'audit-history', label: 'Audit History', icon: History, locked: false },
-    { id: 'competitor-analysis', label: 'Competitor Analysis', icon: Users2, locked: false },
-    { id: 'rank-tracker', label: 'Rank Tracker', icon: TrendingUp, locked: true },
-    { id: 'directory-listings', label: 'Directory listings', icon: ListTree, locked: true },
-    { id: 'review-mgmt', label: 'Review Management', icon: MessageSquare, locked: true },
-    { id: 'enhance-images', label: 'Enhance Images', icon: Sparkles, locked: true },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, locked: true },
-    { id: 'pricing', label: 'Pricing', icon: CreditCard, locked: false },
+    { id: 'competitor-analysis', label: 'Competitor Benchmarking', icon: Users2, locked: false },
+    { id: 'recommendations', label: 'AI Recommendations', icon: Sparkles, locked: false },
+    { id: 'search-performance', label: 'Search Performance', icon: TrendingUp, locked: false },
+    { id: 'analytics', label: 'Analytics (GA4)', icon: BarChart3, locked: false },
+    { id: 'audit-history', label: 'Audit History & Compare', icon: History, locked: false },
+    { id: 'reports', label: 'Reports & Sharing', icon: FileText, locked: false },
+    { id: 'pricing', label: 'Pricing Plans', icon: CreditCard, locked: false },
   ];
 
   return (

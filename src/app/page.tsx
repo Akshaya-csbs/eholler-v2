@@ -17,6 +17,11 @@ import { GbpAuditView } from '@/components/GbpAuditView';
 import { WebsiteSeoView } from '@/components/WebsiteSeoView';
 import { AuditHistoryView } from '@/components/AuditHistoryView';
 import { UserProfileView } from '@/components/UserProfileView';
+import { RecommendationsView } from '@/components/RecommendationsView';
+import { SearchPerformanceView } from '@/components/SearchPerformanceView';
+import { AnalyticsView } from '@/components/AnalyticsView';
+import { ReportsView } from '@/components/ReportsView';
+import { CompetitorView } from '@/components/CompetitorView';
 import { AuditResponse, BusinessInput, GooglePlaceData, GscAnalyticsResult } from '@/lib/types';
 import { emptySearchConsoleMetrics, metricsFromAnalytics } from '@/lib/gsc-metrics';
 import {
@@ -326,6 +331,7 @@ export default function DashboardPage() {
           onOpenAuditModal={() => setIsOnboardingOpen(true)}
           onOpenDrawer={() => setIsDrawerOpen(true)}
           onNewAudit={handleStartNewAudit}
+          onSwitchBusiness={() => setActiveTab('audit-history')}
           gscConnected={gscConnected}
           onOpenGscModal={() => setIsGscModalOpen(true)}
         />
@@ -393,6 +399,28 @@ export default function DashboardPage() {
               {activeTab === 'audit-history' ? (
                 <AuditHistoryView
                   onSelectAudit={loadAuditById}
+                  onBackToDashboard={() => setActiveTab('dashboard')}
+                />
+              ) : activeTab === 'search-performance' ? (
+                <SearchPerformanceView
+                  gscConnected={gscConnected}
+                  selectedProperty={gscProperty}
+                  onOpenGscModal={() => setIsGscModalOpen(true)}
+                  onBackToDashboard={() => setActiveTab('dashboard')}
+                />
+              ) : activeTab === 'analytics' ? (
+                <AnalyticsView
+                  businessWebsiteUrl={landingWebsite}
+                  onBackToDashboard={() => setActiveTab('dashboard')}
+                />
+              ) : activeTab === 'reports' ? (
+                <ReportsView
+                  data={null}
+                  onBackToDashboard={() => setActiveTab('dashboard')}
+                  onNavigateToHistory={() => setActiveTab('audit-history')}
+                />
+              ) : activeTab === 'recommendations' ? (
+                <RecommendationsView
                   onBackToDashboard={() => setActiveTab('dashboard')}
                 />
               ) : (
@@ -722,352 +750,41 @@ export default function DashboardPage() {
               onBackToDashboard={() => setActiveTab('dashboard')}
             />
           ) : activeTab === 'competitor-analysis' ? (
-            /* Service-Based Competitor Intelligence Tab */
-            (() => {
-              const profile = data.targetServiceProfile;
-              const directComps =
-                data.directCompetitors || data.competitors.filter((c) => c.classification === 'direct');
-              const relatedComps =
-                data.relatedCompetitors || data.competitors.filter((c) => c.classification === 'related');
-
-              return (
-                <div className="space-y-6">
-                  {/* Header Banner */}
-                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-600 mb-1">
-                        <Users2 className="w-4 h-4" />
-                        <span>Service-Driven Competitor Intelligence</span>
-                      </div>
-                      <h2 className="text-xl font-bold text-gray-900">Local Service Competitor Analysis</h2>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Competitors discovered and verified by matching actual services provided, strictly sorted by Google rating.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('dashboard')}
-                      className="px-3.5 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      Back to Dashboard
-                    </button>
-                  </div>
-
-                  {/* Target Business Service Profile Card */}
-                  {profile && (
-                    <div className="bg-gradient-to-br from-gray-900 to-[#121A21] text-white rounded-2xl p-6 shadow-sm space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-orange-400" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                            Validated Commercial Service Profile
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {profile.confidenceScore !== undefined && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                              {profile.confidenceScore}% Confidence
-                            </span>
-                          )}
-                          <span className="text-[11px] text-gray-400">
-                            {profile.sourceSummary || 'Derived from crawled website & Google Places'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
-                          <span className="text-gray-400 uppercase font-semibold text-[10px] tracking-wider block">
-                            Actual Commercial Activity
-                          </span>
-                          <span className="text-white font-bold text-sm block">
-                            {profile.actualBusinessType || profile.mainService}
-                          </span>
-                          <span className="text-gray-400 text-[11px] block">
-                            Maps Category: {profile.mapsCategory || data.business.category}
-                          </span>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
-                          <span className="text-gray-400 uppercase font-semibold text-[10px] tracking-wider block">
-                            Primary Services ({profile.primaryServices?.length || 1})
-                          </span>
-                          <span className="text-gray-200 font-medium block truncate" title={profile.primaryServices?.join(', ') || profile.mainService}>
-                            {profile.primaryServices?.length
-                              ? profile.primaryServices.slice(0, 3).join(', ')
-                              : profile.mainService}
-                          </span>
-                          <span className="text-gray-400 text-[11px] block">
-                            Core offerings used for direct competitor discovery
-                          </span>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
-                          <span className="text-gray-400 uppercase font-semibold text-[10px] tracking-wider block">
-                            Secondary Services ({profile.secondaryServices?.length || 0})
-                          </span>
-                          <span className="text-gray-200 font-medium block truncate" title={profile.secondaryServices?.join(', ') || 'None'}>
-                            {profile.secondaryServices?.length
-                              ? profile.secondaryServices.slice(0, 3).join(', ')
-                              : 'None detected'}
-                          </span>
-                          <span className="text-gray-400 text-[11px] block">
-                            Used for related service provider discovery
-                          </span>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
-                          <span className="text-gray-400 uppercase font-semibold text-[10px] tracking-wider block">
-                            Market &amp; Customers
-                          </span>
-                          <span className="text-gray-200 font-medium block truncate">
-                            {profile.serviceLocations?.join(', ') || profile.serviceArea || data.business.city || 'Regional'}
-                          </span>
-                          <span className="text-gray-400 text-[11px] block truncate" title={profile.targetCustomers}>
-                            {profile.targetCustomers || 'Enterprise and commercial clients'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {profile.conflictNotes && profile.conflictNotes.length > 0 && (
-                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-xs flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold">Listing Category Conflict: </span>
-                            {profile.conflictNotes.join(' ')}
-                          </div>
-                        </div>
-                      )}
-
-                      {profile.isServiceProfileValidated === false && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-xs flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold">Validation Notice: </span>
-                            {profile.validationFailureReason || 'Website commercial service evidence could not be validated. Competitor discovery suspended.'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Section A: Direct Competitors */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                          <span>Direct Competitors ({directComps.length})</span>
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Verified local businesses offering the same core service (
-                          <strong className="text-gray-700">
-                            {profile?.mainService || data.business.category}
-                          </strong>
-                          ). Sorted by highest Google rating first.
-                        </p>
-                      </div>
-                    </div>
-
-                    {directComps.length === 0 ? (
-                      <div className="p-8 bg-white rounded-2xl border border-dashed border-gray-300 text-center text-xs text-gray-500 space-y-1">
-                        <p className="font-semibold text-gray-700">
-                          No direct competitors identified for &quot;{profile?.mainService || data.business.category}&quot;
-                        </p>
-                        <p className="text-gray-400 text-[11px] max-w-md mx-auto">
-                          No competing businesses in this immediate geographical market offered the exact same primary service.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {directComps.map((comp, idx) => (
-                          <div
-                            key={comp.id || idx}
-                            className="p-5 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-3"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-bold text-sm text-gray-900">{comp.name}</div>
-                                <span className="text-[11px] text-gray-500">{comp.category || 'Local Business'}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <div className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                                  <span>{comp.rating ? comp.rating.toFixed(1) : 'Unrated'}</span>
-                                  <span className="text-gray-400 font-normal">({comp.reviews} reviews)</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-xs text-gray-600 space-y-1.5 pt-1 border-t border-gray-100">
-                              <div className="flex items-start gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                                <span className="truncate">{comp.address || 'Local Service Area'}</span>
-                              </div>
-                              <div className="flex items-start gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                                <span>
-                                  <strong>Main Service:</strong>{' '}
-                                  {comp.mainServiceIdentified || profile?.mainService}
-                                </span>
-                              </div>
-                            </div>
-
-                            {comp.rationale && (
-                              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-[11px] text-gray-700 leading-relaxed">
-                                {comp.rationale}
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[11px]">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
-                                  Direct Competitor
-                                </span>
-                                {comp.evidenceConfidence && (
-                                  <span className="text-[10px] text-gray-500">
-                                    {comp.evidenceConfidence === 'high' ? 'Verified Website' : 'Google Maps Profile'}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {(comp.evidenceSourceUrl || comp.websiteUri) && (
-                                  <a
-                                    href={comp.evidenceSourceUrl || comp.websiteUri}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-orange-600 hover:text-orange-800 font-medium inline-flex items-center gap-1"
-                                    title={comp.evidenceSourceUrl ? `Verified source: ${comp.evidenceSourceUrl}` : 'Competitor Website'}
-                                  >
-                                    <span>{comp.evidenceSourceUrl && comp.evidenceSourceUrl !== comp.websiteUri ? 'Verified Service' : 'Website'}</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
-                                {comp.mapUrl && (
-                                  <a
-                                    href={comp.mapUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-gray-500 hover:text-gray-800 font-medium inline-flex items-center gap-1"
-                                  >
-                                    <span>Maps</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Section B: Related Competitors */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                          <span>Related Competitors ({relatedComps.length})</span>
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Local businesses offering overlapping secondary services or adjacent offerings. Sorted by highest Google rating first.
-                        </p>
-                      </div>
-                    </div>
-
-                    {relatedComps.length === 0 ? (
-                      <div className="p-8 bg-white rounded-2xl border border-dashed border-gray-300 text-center text-xs text-gray-500 space-y-1">
-                        <p className="font-semibold text-gray-700">No related competitors identified</p>
-                        <p className="text-gray-400 text-[11px] max-w-md mx-auto">
-                          No overlapping secondary service providers were discovered in this search radius.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {relatedComps.map((comp, idx) => (
-                          <div
-                            key={comp.id || idx}
-                            className="p-5 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-3"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-bold text-sm text-gray-900">{comp.name}</div>
-                                <span className="text-[11px] text-gray-500">{comp.category || 'Local Business'}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <div className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                                  <span>{comp.rating ? comp.rating.toFixed(1) : 'Unrated'}</span>
-                                  <span className="text-gray-400 font-normal">({comp.reviews} reviews)</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-xs text-gray-600 space-y-1.5 pt-1 border-t border-gray-100">
-                              <div className="flex items-start gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                                <span className="truncate">{comp.address || 'Local Service Area'}</span>
-                              </div>
-                              <div className="flex items-start gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                                <span>
-                                  <strong>Overlaps with:</strong>{' '}
-                                  {comp.matchedTargetService || 'Secondary offering'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {comp.rationale && (
-                              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-[11px] text-gray-700 leading-relaxed">
-                                {comp.rationale}
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[11px]">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                  Related Provider
-                                </span>
-                                {comp.evidenceConfidence && (
-                                  <span className="text-[10px] text-gray-500">
-                                    {comp.evidenceConfidence === 'high' ? 'Verified Website' : 'Google Maps Profile'}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {(comp.evidenceSourceUrl || comp.websiteUri) && (
-                                  <a
-                                    href={comp.evidenceSourceUrl || comp.websiteUri}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-orange-600 hover:text-orange-800 font-medium inline-flex items-center gap-1"
-                                    title={comp.evidenceSourceUrl ? `Verified source: ${comp.evidenceSourceUrl}` : 'Competitor Website'}
-                                  >
-                                    <span>{comp.evidenceSourceUrl && comp.evidenceSourceUrl !== comp.websiteUri ? 'Verified Service' : 'Website'}</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
-                                {comp.mapUrl && (
-                                  <a
-                                    href={comp.mapUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-gray-500 hover:text-gray-800 font-medium inline-flex items-center gap-1"
-                                  >
-                                    <span>Maps</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()
+            /* Service-Based Competitor Intelligence & Gap Analysis Tab */
+            <CompetitorView
+              data={data}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+            />
+          ) : activeTab === 'recommendations' ? (
+            /* Actionable AI Recommendations Roadmap View */
+            <RecommendationsView
+              recommendations={data.structuredRecommendations || []}
+              businessId={data.business.placeId}
+              businessName={data.business.name}
+              auditRunId={data.auditRunId}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+            />
+          ) : activeTab === 'search-performance' ? (
+            /* Google Search Console Performance View */
+            <SearchPerformanceView
+              gscConnected={gscConnected}
+              selectedProperty={gscProperty}
+              onOpenGscModal={() => setIsGscModalOpen(true)}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+            />
+          ) : activeTab === 'analytics' ? (
+            /* Google Analytics GA4 View & Setup Guide */
+            <AnalyticsView
+              businessWebsiteUrl={data.business.websiteUrl}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+            />
+          ) : activeTab === 'reports' ? (
+            /* Executive Reports & Public Sharing View */
+            <ReportsView
+              data={data}
+              onBackToDashboard={() => setActiveTab('dashboard')}
+              onNavigateToHistory={() => setActiveTab('audit-history')}
+            />
           ) : (
             /* Live Dashboard for the Analyzed Business */
             <>
@@ -1101,6 +818,7 @@ export default function DashboardPage() {
                 data={data}
                 onOpenAuditDrawer={() => setIsDrawerOpen(true)}
                 onOpenCompetitors={() => setActiveTab('competitor-analysis')}
+                onOpenRecommendations={() => setActiveTab('recommendations')}
               />
             </>
           )}

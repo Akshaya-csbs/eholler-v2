@@ -98,6 +98,19 @@ export const WebsiteSeoView: React.FC<WebsiteSeoViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {websiteAudit.technicalScore !== undefined && (
+            <div className="text-right">
+              <div className="text-[10px] uppercase font-bold text-gray-500">Technical SEO</div>
+              <div className="text-sm font-bold text-gray-900">{websiteAudit.technicalScore}/100</div>
+            </div>
+          )}
+          {websiteAudit.onPageScore !== undefined && (
+            <div className="text-right">
+              <div className="text-[10px] uppercase font-bold text-gray-500">On-Page SEO</div>
+              <div className="text-sm font-bold text-gray-900">{websiteAudit.onPageScore}/100</div>
+            </div>
+          )}
+
           {websiteAudit.isHttps ? (
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -452,6 +465,90 @@ export const WebsiteSeoView: React.FC<WebsiteSeoViewProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* 4. Technical Health & Deductions Breakdown */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-emerald-600" />
+          <span>Technical SEO &amp; Mobile Indexability Signals</span>
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          {/* Mobile Viewport */}
+          <div className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/60">
+            <div className="flex items-center justify-between font-bold text-gray-700 mb-1">
+              <span>Mobile Viewport</span>
+              {websiteAudit.hasViewportMeta ? (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-semibold">Configured</span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-800 font-semibold">Missing</span>
+              )}
+            </div>
+            <div className="text-[11px] text-gray-500 font-mono truncate">
+              {websiteAudit.viewportContent || 'No viewport meta tag found'}
+            </div>
+          </div>
+
+          {/* Sitemap.xml */}
+          <div className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/60">
+            <div className="flex items-center justify-between font-bold text-gray-700 mb-1">
+              <span>XML Sitemap</span>
+              {websiteAudit.sitemapUrl ? (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-semibold">Detected</span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-semibold">Not Found</span>
+              )}
+            </div>
+            <div className="text-[11px] text-gray-500 truncate">
+              {websiteAudit.sitemapStatus || 'No /sitemap.xml at root'}
+            </div>
+          </div>
+
+          {/* Broken Internal Links */}
+          <div className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/60">
+            <div className="flex items-center justify-between font-bold text-gray-700 mb-1">
+              <span>Internal Broken Links</span>
+              {websiteAudit.brokenInternalLinks && websiteAudit.brokenInternalLinks.length > 0 ? (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-red-100 text-red-800 font-semibold">
+                  {websiteAudit.brokenInternalLinks.length} Broken
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-semibold">0 Detected</span>
+              )}
+            </div>
+            <div className="text-[11px] text-gray-500">
+              {websiteAudit.brokenInternalLinks && websiteAudit.brokenInternalLinks.length > 0
+                ? `${websiteAudit.brokenInternalLinks.length} internal links returned >= 400 errors`
+                : 'All crawled key internal links resolved with 200 OK'}
+            </div>
+          </div>
+        </div>
+
+        {/* Deductions Breakdown */}
+        {websiteAudit.scoreDeductions && websiteAudit.scoreDeductions.length > 0 && (
+          <div className="pt-3 border-t border-gray-100">
+            <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+              Transparent Scoring Deductions ({websiteAudit.scoreDeductions.length})
+            </div>
+            <div className="space-y-1.5">
+              {websiteAudit.scoreDeductions.map((ded, i) => (
+                <div
+                  key={i}
+                  className="p-2.5 rounded-lg border border-red-100 bg-red-50/50 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700">
+                      {ded.category}
+                    </span>
+                    <span className="text-gray-800 font-medium">{ded.reason}</span>
+                  </div>
+                  <span className="text-red-700 font-bold shrink-0">-{ded.points} pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

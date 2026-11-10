@@ -259,6 +259,37 @@ function mapAuditRunToResponse(auditRun: any): AuditResponse {
       citationFixes: inconsistentFields.length === 0 ? 100 : 65,
       reviewGrowth: Math.min(100, Math.round((reviewCount / 100) * 100)) || 10,
       keywordRankings: 0,
+      websiteScore: websiteAudit ? Math.round(((websiteAudit.technicalScore ?? 75) + (websiteAudit.onPageScore ?? 70)) / 2) : undefined,
+      technicalScore: websiteAudit?.technicalScore ?? 75,
+      onPageScore: websiteAudit?.onPageScore ?? 70,
+      localRelevanceScore: auditRun.completenessScore ?? 80,
+      reviewScore: Math.min(100, Math.round(((rating || 0) / 5) * 60 + Math.min(40, (reviewCount || 0) * 0.4))),
+      scoreBreakdown: [
+        {
+          category: 'Google Business Profile Completeness',
+          score: gbpHealth,
+          weight: '35%',
+          deductions: missingFields.slice(0, 3).map((f: string) => `Missing field: ${f}`),
+        },
+        {
+          category: 'Website Technical & On-Page SEO',
+          score: websiteAudit ? Math.round(((websiteAudit.technicalScore ?? 75) + (websiteAudit.onPageScore ?? 70)) / 2) : 60,
+          weight: '30%',
+          deductions: (websiteAudit?.scoreDeductions || []).slice(0, 3).map((d: any) => d.reason),
+        },
+        {
+          category: 'NAP Parity & Citations',
+          score: inconsistentFields.length === 0 ? 100 : 70,
+          weight: '20%',
+          deductions: inconsistentFields.map((f: string) => `Inconsistent listing: ${f}`),
+        },
+        {
+          category: 'Reviews & Local Authority',
+          score: Math.min(100, Math.round(((rating || 0) / 5) * 60 + Math.min(40, (reviewCount || 0) * 0.4))),
+          weight: '15%',
+          deductions: reviewCount < 50 ? [`Low review volume (${reviewCount} reviews)`] : [],
+        },
+      ],
     },
     searchConsole: emptySearchConsoleMetrics(mapsVisibilityPercent),
     priorityActions,
@@ -294,6 +325,14 @@ export async function GET(req: NextRequest) {
     const auditId = searchParams.get('auditId');
     const businessId = searchParams.get('businessId');
     const isList = searchParams.get('list') === 'true';
+    const isCompare = searchParams.get('compare') === 'true';
+    const baseAuditId = searchParams.get('baseAuditId');
+    const targetAuditId = searchParams.get('targetAuditId');
+
+    if (isCompare && baseAuditId && targetAuditId) {
+      const comparison = await orgScope.compareAudits(baseAuditId, targetAuditId);
+      return NextResponse.json({ success: true, comparison });
+    }
 
     if (isList) {
       const runs = await orgScope.listAuditRuns(businessId || undefined, 20);
@@ -630,6 +669,37 @@ export async function POST(req: NextRequest) {
         citationFixes: siteAudit?.hasPhoneMatch ? 100 : 65,
         reviewGrowth: Math.min(100, Math.round((reviewCount / 100) * 100)) || 10,
         keywordRankings: 0,
+        websiteScore: siteAudit ? Math.round(((siteAudit.technicalScore ?? 75) + (siteAudit.onPageScore ?? 70)) / 2) : undefined,
+        technicalScore: siteAudit?.technicalScore,
+        onPageScore: siteAudit?.onPageScore,
+        localRelevanceScore: gbpCompleteAudit?.completenessScore || 75,
+        reviewScore: Math.min(100, Math.round(((rating || 0) / 5) * 60 + Math.min(40, (reviewCount || 0) * 0.4))),
+        scoreBreakdown: [
+          {
+            category: 'Google Business Profile Completeness',
+            score: auditEngineResult.gbpHealth,
+            weight: '35%',
+            deductions: auditEngineResult.missingFields.slice(0, 3).map((f) => `Missing field: ${f}`),
+          },
+          {
+            category: 'Website Technical & On-Page SEO',
+            score: siteAudit ? Math.round(((siteAudit.technicalScore ?? 75) + (siteAudit.onPageScore ?? 70)) / 2) : 50,
+            weight: '30%',
+            deductions: (siteAudit?.scoreDeductions || []).slice(0, 3).map((d) => d.reason),
+          },
+          {
+            category: 'NAP Parity & Citations',
+            score: siteAudit?.hasPhoneMatch && siteAudit?.hasAddressMatch ? 100 : siteAudit?.hasPhoneMatch ? 80 : 60,
+            weight: '20%',
+            deductions: !siteAudit?.hasPhoneMatch ? ['Phone number not found on website homepage'] : [],
+          },
+          {
+            category: 'Reviews & Local Authority',
+            score: Math.min(100, Math.round(((rating || 0) / 5) * 60 + Math.min(40, (reviewCount || 0) * 0.4))),
+            weight: '15%',
+            deductions: reviewCount < 50 ? [`Low review volume (${reviewCount} reviews)`] : [],
+          },
+        ],
       },
       searchConsole: emptySearchConsoleMetrics(mapsVisibilityPercent),
       priorityActions: auditEngineResult.priorityActions,

@@ -23,6 +23,7 @@ interface InsightsActionsProps {
   data: AuditResponse;
   onOpenAuditDrawer: () => void;
   onOpenCompetitors?: () => void;
+  onOpenRecommendations?: () => void;
 }
 
 // Category display config
@@ -149,7 +150,12 @@ function RecommendationCard({ rec, index }: { rec: StructuredRecommendation; ind
   );
 }
 
-export const InsightsActions: React.FC<InsightsActionsProps> = ({ data, onOpenAuditDrawer, onOpenCompetitors }) => {
+export const InsightsActions: React.FC<InsightsActionsProps> = ({
+  data,
+  onOpenAuditDrawer,
+  onOpenCompetitors,
+  onOpenRecommendations,
+}) => {
   const { priorityActions, aiRecommendations, competitors, optimizedDescriptionDraft, structuredRecommendations } = data;
   const [copied, setCopied] = useState(false);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
@@ -347,12 +353,24 @@ export const InsightsActions: React.FC<InsightsActionsProps> = ({ data, onOpenAu
             <span className="text-[11px] text-gray-400">
               {hasStructuredRecs ? 'Powered by OpenAI Responses API' : 'Powered by OpenAI & Local SEO Models'}
             </span>
-            <button
-              onClick={() => setShowDescriptionModal(true)}
-              className="text-xs font-semibold text-[#C84A22] hover:text-[#A33815] transition"
-            >
-              Get Optimized Description &rarr;
-            </button>
+            <div className="flex items-center gap-3">
+              {onOpenRecommendations && (
+                <button
+                  type="button"
+                  onClick={onOpenRecommendations}
+                  className="text-xs font-semibold text-[#C84A22] hover:text-[#A33815] transition"
+                >
+                  Manage Roadmap &rarr;
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDescriptionModal(true)}
+                className="text-xs font-semibold text-gray-600 hover:text-gray-900 transition"
+              >
+                Bio Draft
+              </button>
+            </div>
           </div>
         </div>
 
