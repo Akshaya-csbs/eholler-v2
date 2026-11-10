@@ -1,6 +1,6 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { WebsiteAuditData } from './types';
+import { validateOutboundUrl, safeFetchHtml } from './security/ssrf';
 
 /**
  * Normalizes a URL to ensure proper protocol and format
@@ -18,12 +18,13 @@ function normalizeUrl(rawUrl: string): string {
  */
 async function checkRobotsTxt(origin: string): Promise<string | undefined> {
   try {
-    const robotsRes = await axios.get(`${origin}/robots.txt`, {
-      timeout: 3000,
-      validateStatus: (s) => s === 200,
+    const res = await safeFetchHtml(`${origin}/robots.txt`, {
+      timeout: 3500,
+      maxRedirects: 2,
+      maxSizeBytes: 512 * 1024,
     });
-    const text = typeof robotsRes.data === 'string' ? robotsRes.data : '';
-    if (text.includes('Disallow: /')) {
+    const text = typeof res.data === 'string' ? res.data : '';
+    if (res.status === 200 && text.includes('Disallow: /')) {
       return 'robots.txt present; restricts root path or user-agents.';
     }
     return 'robots.txt present and accessible.';
@@ -33,8 +34,30 @@ async function checkRobotsTxt(origin: string): Promise<string | undefined> {
 }
 
 /**
+ * Checks if sitemap.xml exists and is accessible
+ */
+async function checkSitemap(origin: string): Promise<{ url: string; status: string } | undefined> {
+  try {
+    const sitemapUrl = `${origin}/sitemap.xml`;
+    const res = await safeFetchHtml(sitemapUrl, {
+      timeout: 4000,
+      maxRedirects: 2,
+      maxSizeBytes: 2 * 1024 * 1024,
+    });
+    const text = typeof res.data === 'string' ? res.data : '';
+    if (res.status === 200 && (text.includes('<?xml') || text.includes('<urlset') || text.includes('<sitemapindex'))) {
+      return { url: sitemapUrl, status: 'Accessible and valid XML sitemap detected' };
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Crawls and cross-verifies business website for Local SEO signals, NAP parity,
  * Schema.org markup, headings, meta tags, and internal key pages.
+ * Fully protected against SSRF, internal DNS resolution, and loopback targeting.
  */
 export async function scrapeWebsite(
   rawUrl: string,
@@ -43,6 +66,39 @@ export async function scrapeWebsite(
   businessName?: string
 ): Promise<WebsiteAuditData> {
   const url = normalizeUrl(rawUrl);
+
+  // SSRF Protection Check
+  const ssrfCheck = await validateOutboundUrl(url);
+  if (!ssrfCheck.valid) {
+    return {
+      url,
+      isHttps: url.startsWith('https://'),
+      statusCode: 0,
+      hasPhoneMatch: false,
+      hasAddressMatch: false,
+      hasLocalBusinessSchema: false,
+      subpagesCrawled: [],
+      schemasFound: [],
+      h1Headings: [],
+      h2Headings: [],
+      headings: [],
+      paragraphs: [],
+      servicesMentioned: [],
+      images: { total: 0, withAlt: 0, missingAlt: 0, sampleAltTexts: [] },
+      ssrfBlocked: true,
+      ssrfReason: ssrfCheck.reason || 'Blocked by SSRF security filter',
+      technicalScore: 0,
+      onPageScore: 0,
+      scoreDeductions: [
+        {
+          category: 'Security Filter',
+          reason: ssrfCheck.reason || 'Target domain resolves to protected or internal IP',
+          points: 100,
+        },
+      ],
+    };
+  }
+
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
@@ -66,31 +122,35 @@ export async function scrapeWebsite(
     paragraphs: [],
     servicesMentioned: [],
     images: { total: 0, withAlt: 0, missingAlt: 0, sampleAltTexts: [] },
+    brokenInternalLinks: [],
   };
 
   const startTime = Date.now();
 
   try {
-    // 1. Check robots.txt (non-blocking)
-    const robotsPromise = checkRobotsTxt(origin);
+    // 1. Probe robots.txt and sitemap.xml concurrently
+    const [robotsTxtStatus, sitemapData] = await Promise.all([
+      checkRobotsTxt(origin),
+      checkSitemap(origin),
+    ]);
 
-    // 2. Fetch Homepage
-    const response = await axios.get(url, {
+    if (sitemapData) {
+      result.sitemapUrl = sitemapData.url;
+      result.sitemapStatus = sitemapData.status;
+    }
+
+    // 2. Fetch Homepage using hardened SSRF-protected safeFetchHtml
+    const fetchRes = await safeFetchHtml(url, {
       timeout: 8000,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      maxRedirects: 5,
+      maxRedirects: 4,
+      maxSizeBytes: 5 * 1024 * 1024,
     });
 
-    result.loadTimeMs = Date.now() - startTime;
-    result.statusCode = response.status;
-    const finalUrl = response.request?.res?.responseUrl || url;
-    result.isHttps = finalUrl.startsWith('https://');
+    result.loadTimeMs = fetchRes.loadTimeMs;
+    result.statusCode = fetchRes.status;
+    result.isHttps = fetchRes.finalUrl.startsWith('https://');
 
-    const html = response.data;
+    const html = fetchRes.data;
     const $ = cheerio.load(html);
 
     // Title & Meta Description
@@ -103,13 +163,17 @@ export async function scrapeWebsite(
     // Canonical URL
     result.canonicalUrl = $('link[rel="canonical"]').attr('href')?.trim() || undefined;
 
+    // Viewport Mobile Meta
+    const viewportContent = $('meta[name="viewport"]').attr('content')?.trim();
+    result.hasViewportMeta = Boolean(viewportContent && viewportContent.includes('width='));
+    result.viewportContent = viewportContent;
+
     // Robots Directives
     const robotsMeta =
       $('meta[name="robots"]').attr('content')?.trim() ||
       $('meta[name="googlebot"]').attr('content')?.trim() ||
       undefined;
 
-    const robotsTxtStatus = await robotsPromise;
     result.robotsDirectives = [robotsMeta ? `Meta: ${robotsMeta}` : null, robotsTxtStatus]
       .filter(Boolean)
       .join(' | ') || undefined;
@@ -410,21 +474,34 @@ export async function scrapeWebsite(
       ...internalLinks.filter((l) => l.type === 'contact' || l.type === 'location'),
     ];
 
-    const keySubpagesToCrawl = prioritizedSubpages.slice(0, 3);
+    const keySubpagesToCrawl = prioritizedSubpages.slice(0, 4);
+    const brokenLinks: Array<{ url: string; statusCode: number }> = [];
+    const subpageTitles: string[] = [];
+    const subpageDescriptions: string[] = [];
+
     for (const sub of keySubpagesToCrawl) {
       try {
-        const subRes = await axios.get(sub.url, {
+        // SSRF-protected subpage fetch with manual redirect re-validation
+        const subRes = await safeFetchHtml(sub.url, {
           timeout: 4500,
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
           maxRedirects: 3,
+          maxSizeBytes: 3 * 1024 * 1024,
         });
+
+        if (subRes.status >= 400) {
+          brokenLinks.push({ url: sub.url, statusCode: subRes.status });
+        }
 
         const sub$ = cheerio.load(subRes.data);
         const subTitle = sub$('title').text().trim() || undefined;
+        const subMetaDesc =
+          sub$('meta[name="description"]').attr('content')?.trim() ||
+          sub$('meta[property="og:description"]').attr('content')?.trim() ||
+          undefined;
         const subText = sub$('body').text().toLowerCase();
+
+        if (subTitle) subpageTitles.push(subTitle);
+        if (subMetaDesc) subpageDescriptions.push(subMetaDesc);
 
         // If this is a Services subpage, extract its rich service titles
         if (sub.type === 'services') {
@@ -473,16 +550,31 @@ export async function scrapeWebsite(
         result.subpagesCrawled?.push({
           url: sub.url,
           title: subTitle,
+          metaDescription: subMetaDesc,
           type: sub.type,
           statusCode: subRes.status,
         });
-      } catch {
+      } catch (err: any) {
+        const status = err.response?.status || 0;
+        if (status >= 400) {
+          brokenLinks.push({ url: sub.url, statusCode: status });
+        }
         result.subpagesCrawled?.push({
           url: sub.url,
           type: sub.type,
-          statusCode: 0,
+          statusCode: status,
         });
       }
+    }
+
+    result.brokenInternalLinks = brokenLinks;
+
+    // Detect duplicate titles and meta descriptions across crawled pages
+    if (result.title && subpageTitles.some((t) => t.toLowerCase() === result.title?.toLowerCase())) {
+      result.duplicateTitlesFound = true;
+    }
+    if (result.metaDescription && subpageDescriptions.some((d) => d.toLowerCase() === result.metaDescription?.toLowerCase())) {
+      result.duplicateDescriptionsFound = true;
     }
 
     // Deduplicate and cap extracted services
@@ -498,11 +590,88 @@ export async function scrapeWebsite(
       detectedAddress: city && result.hasAddressMatch ? city : undefined,
     };
 
+    // Calculate Transparent Scoring & Deductions
+    const deductions: Array<{ category: string; reason: string; points: number }> = [];
+
+    let technicalScore = 100;
+    if (!result.isHttps) {
+      technicalScore -= 20;
+      deductions.push({ category: 'Technical SEO', reason: 'Website does not enforce HTTPS encryption', points: 20 });
+    }
+    if (result.loadTimeMs && result.loadTimeMs > 3500) {
+      technicalScore -= 10;
+      deductions.push({ category: 'Technical SEO', reason: `Slow initial server response time (${result.loadTimeMs}ms)`, points: 10 });
+    }
+    if (!result.hasViewportMeta) {
+      technicalScore -= 15;
+      deductions.push({ category: 'Technical SEO', reason: 'Missing mobile responsive viewport meta tag', points: 15 });
+    }
+    if (!result.sitemapUrl) {
+      technicalScore -= 10;
+      deductions.push({ category: 'Technical SEO', reason: 'No accessible sitemap.xml found at website root', points: 10 });
+    }
+    if (brokenLinks.length > 0) {
+      const penalty = Math.min(15, brokenLinks.length * 5);
+      technicalScore -= penalty;
+      deductions.push({ category: 'Technical SEO', reason: `${brokenLinks.length} broken internal link(s) detected`, points: penalty });
+    }
+    result.technicalScore = Math.max(0, technicalScore);
+
+    let onPageScore = 100;
+    if (!result.title) {
+      onPageScore -= 25;
+      deductions.push({ category: 'On-Page SEO', reason: 'Missing HTML page title tag', points: 25 });
+    } else if (result.title.length < 20 || result.title.length > 70) {
+      onPageScore -= 10;
+      deductions.push({ category: 'On-Page SEO', reason: `Page title length (${result.title.length} chars) is outside optimal range (30-65 chars)`, points: 10 });
+    }
+
+    if (!result.metaDescription) {
+      onPageScore -= 20;
+      deductions.push({ category: 'On-Page SEO', reason: 'Missing meta description tag', points: 20 });
+    } else if (result.metaDescription.length < 50 || result.metaDescription.length > 165) {
+      onPageScore -= 10;
+      deductions.push({ category: 'On-Page SEO', reason: `Meta description length (${result.metaDescription.length} chars) is outside optimal range (120-160 chars)`, points: 10 });
+    }
+
+    if (!result.h1Headings || result.h1Headings.length === 0) {
+      onPageScore -= 15;
+      deductions.push({ category: 'On-Page SEO', reason: 'No H1 primary heading found on page', points: 15 });
+    } else if (result.h1Headings.length > 1) {
+      onPageScore -= 5;
+      deductions.push({ category: 'On-Page SEO', reason: 'Multiple H1 headings found (recommended: exactly 1 per page)', points: 5 });
+    }
+
+    if (result.images && result.images.total > 0 && result.images.missingAlt > 0) {
+      const missingRatio = result.images.missingAlt / result.images.total;
+      const penalty = missingRatio > 0.5 ? 15 : 10;
+      onPageScore -= penalty;
+      deductions.push({ category: 'On-Page SEO', reason: `${result.images.missingAlt} of ${result.images.total} images missing alt text attributes`, points: penalty });
+    }
+
+    if (!result.hasLocalBusinessSchema) {
+      onPageScore -= 15;
+      deductions.push({ category: 'On-Page SEO', reason: 'No LocalBusiness or Organization schema.org JSON-LD structured data detected', points: 15 });
+    }
+
+    if (result.duplicateTitlesFound) {
+      onPageScore -= 10;
+      deductions.push({ category: 'On-Page SEO', reason: 'Duplicate page titles detected between homepage and subpages', points: 10 });
+    }
+
+    result.onPageScore = Math.max(0, onPageScore);
+    result.scoreDeductions = deductions;
+
     return result;
   } catch (error: any) {
     console.warn(`Website crawl failed or restricted for ${url}:`, error.message);
     result.loadTimeMs = Date.now() - startTime;
     result.isHttps = url.startsWith('https://');
+    result.technicalScore = 40;
+    result.onPageScore = 40;
+    result.scoreDeductions = [
+      { category: 'Crawl Accessibility', reason: error.message || 'Website was unreachable or timed out', points: 60 },
+    ];
     return result;
   }
 }
@@ -511,6 +680,7 @@ export async function scrapeWebsite(
  * Lightweight website scraper for verifying discovered competitor websites.
  * Extracts title, meta description, H1/H2 headings, and services to establish
  * whether the competitor actually offers the same or similar services.
+ * Fully protected with SSRF pre-check.
  */
 export async function scrapeCandidateSummary(rawUrl: string): Promise<{
   title?: string;
@@ -521,6 +691,18 @@ export async function scrapeCandidateSummary(rawUrl: string): Promise<{
   evidenceUrl: string;
 }> {
   const url = normalizeUrl(rawUrl);
+
+  // SSRF check for competitor candidate
+  const ssrfCheck = await validateOutboundUrl(url);
+  if (!ssrfCheck.valid) {
+    return {
+      headings: [],
+      services: [],
+      isReachable: false,
+      evidenceUrl: url,
+    };
+  }
+
   const genericTerms = new Set([
     'home', 'about', 'about us', 'contact', 'contact us', 'privacy', 'terms',
     'blog', 'news', 'login', 'careers', 'services', 'our services', 'all services',
@@ -530,13 +712,8 @@ export async function scrapeCandidateSummary(rawUrl: string): Promise<{
   ]);
 
   try {
-    const res = await axios.get(url, {
+    const res = await safeFetchHtml(url, {
       timeout: 4000,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'text/html',
-      },
       maxRedirects: 2,
     });
 
