@@ -107,6 +107,7 @@ model User {
   jobTitle                String?
   companyName             String?
   country                 String?
+  accountType             String?                  // 'BUSINESS' | 'PERSONAL' (optional classification override)
   isProfileCompleted      Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -114,6 +115,7 @@ model User {
   memberships             OrganisationMembership[]
   auditRunsTriggered      AuditRun[]               @relation("UserTriggeredAudits")
   approvedRecommendations AIRecommendation[]       @relation("UserApprovedRecommendations")
+  googleConnections       GoogleConnection[]
 
   @@index([email])
 }
@@ -220,6 +222,7 @@ model BusinessSource {
 model GoogleConnection {
   id                    String                  @id @default(cuid())
   organisationId        String
+  userId                String?                 // Eholler user who authorized this connection
   service               GoogleServiceType       @default(SEARCH_CONSOLE)
   email                 String
   googleUserId          String?
@@ -233,12 +236,14 @@ model GoogleConnection {
   updatedAt             DateTime                @updatedAt
 
   organisation          Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user                  User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
   scProperties          SearchConsoleProperty[]
   gaProperties          AnalyticsProperty[]
   gbpLocations          GbpLocation[]
 
   @@unique([organisationId, service])
   @@index([organisationId])
+  @@index([userId])
   @@index([status])
 }
 

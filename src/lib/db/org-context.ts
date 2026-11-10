@@ -488,6 +488,7 @@ export function createOrgScope(organisationId: string) {
       tokenExpiry?: Date;
       scopes: string[];
       googleUserId?: string;
+      userId?: string;
       service?: GoogleServiceType;
     }) {
       const service = params.service || GoogleServiceType.SEARCH_CONSOLE;
@@ -503,6 +504,7 @@ export function createOrgScope(organisationId: string) {
         },
         create: {
           organisationId,
+          userId: params.userId || undefined,
           service,
           email: params.email,
           googleUserId: params.googleUserId,
@@ -513,6 +515,7 @@ export function createOrgScope(organisationId: string) {
           status: ConnectionStatus.CONNECTED,
         },
         update: {
+          userId: params.userId || undefined,
           email: params.email,
           googleUserId: params.googleUserId,
           encryptedAccessToken,

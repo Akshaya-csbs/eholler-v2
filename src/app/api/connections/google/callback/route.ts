@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import axios from 'axios';
+import { currentUser } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 import {
   COOKIE as GSC_COOKIE,
   GOOGLE_TOKEN_URL,
@@ -16,6 +18,7 @@ import {
   gbpCookieOptions,
 } from '@/lib/gbp-config';
 import { applyGbpTokenCookies, clearGbpCookies } from '@/lib/gbp-tokens';
+import { listAllAccessibleGbpLocations } from '@/lib/gbp-api';
 import { getDefaultOrgScope } from '@/lib/db/default-org';
 import { GoogleServiceType } from '@prisma/client';
 import { cookies } from 'next/headers';
@@ -36,6 +39,14 @@ function redirectHome(req: NextRequest, params: Record<string, string>) {
   return url;
 }
 
+function redirectOnboarding(req: NextRequest, params: Record<string, string>) {
+  const url = new URL('/connect-gbp', req.nextUrl.origin);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url;
+}
+
 export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get('state') || '';
   const isGbp = state.startsWith('gbp_') || Boolean(req.cookies.get(GBP_COOKIE.state)?.value);
@@ -44,9 +55,31 @@ export async function GET(req: NextRequest) {
   // GBP (Google Business Profile) OAuth Flow Handling
   // ---------------------------------------------------------
   if (isGbp) {
-    const failGbp = (code: string) => {
-      cookies().set(GBP_COOKIE.state, '', gbpCookieOptions(0));
-      return NextResponse.redirect(redirectHome(req, { activeTab: 'profile', gbp_error: code }));
+    const isOnboarding = state.includes('onboarding') || state.startsWith('gbp_onboarding_');
+    const isExplicitBusiness = state.includes('_biz_');
+
+    // Decode optional metadata cookie
+    let meta: { flow?: string; from?: string; expectedEmail?: string | null } = {};
+    const rawMeta = req.cookies.get('gbp_oauth_meta')?.value;
+    if (rawMeta) {
+      try {
+        meta = JSON.parse(Buffer.from(rawMeta, 'base64').toString('utf-8'));
+      } catch (e) {
+        meta = {};
+      }
+    }
+
+    const isBusinessFlow = isExplicitBusiness || meta.flow === 'business';
+
+    const failGbp = (code: string, extraParams: Record<string, string> = {}) => {
+      const res = isOnboarding
+        ? NextResponse.redirect(redirectOnboarding(req, { error: code, ...extraParams }))
+        : NextResponse.redirect(redirectHome(req, { activeTab: 'profile', gbp_error: code, ...extraParams }));
+
+      res.cookies.set(GBP_COOKIE.state, '', gbpCookieOptions(0));
+      res.cookies.set('gbp_oauth_meta', '', gbpCookieOptions(0));
+      clearGbpCookies(res);
+      return res;
     };
 
     if (!isGoogleOAuthConfigured()) {
@@ -95,34 +128,57 @@ export async function GET(req: NextRequest) {
           validateStatus: () => true,
         });
         if (userInfoRes.status >= 200 && userInfoRes.status < 300 && userInfoRes.data?.email) {
-          googleEmail = userInfoRes.data.email;
+          googleEmail = userInfoRes.data.email.trim().toLowerCase();
           googleUserId = userInfoRes.data.sub || null;
         }
       } catch (uiErr) {
         console.warn('Could not fetch Google UserInfo for GBP connection:', uiErr);
       }
 
-      const isOnboarding = state.startsWith('gbp_onboarding_');
-      const redirectParams: Record<string, string> = { activeTab: 'profile', gbp: 'connected' };
-      if (isOnboarding) {
-        redirectParams.onboarding = 'complete';
+      // Retrieve current authenticated Clerk user
+      let verifiedEhollerEmail: string | null = meta.expectedEmail || null;
+      let currentDbUserId: string | null = null;
+      try {
+        const clerkUser = await currentUser();
+        const primary = clerkUser?.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId);
+        if (primary?.emailAddress) {
+          verifiedEhollerEmail = primary.emailAddress.trim().toLowerCase();
+        }
+        if (clerkUser?.id) {
+          const dbUser = await prisma.user.findFirst({
+            where: { clerkId: clerkUser.id },
+          });
+          if (dbUser) currentDbUserId = dbUser.id;
+        }
+      } catch (authErr) {
+        console.warn('Could not inspect current Clerk user in GBP callback:', authErr);
       }
-      const success = NextResponse.redirect(redirectHome(req, redirectParams));
-      applyGbpTokenCookies(
-        {
-          access_token: tokenRes.data.access_token,
-          refresh_token: tokenRes.data.refresh_token,
-          expires_in: tokenRes.data.expires_in,
-        },
-        success
-      );
+
+      // ── Step 5: Google Identity Mismatch Check for Business Email Flow ──
+      // If user entered via business email onboarding, verify the authorised Google account matches
+      if (isBusinessFlow && verifiedEhollerEmail) {
+        const normalizedGoogle = googleEmail.trim().toLowerCase();
+        const normalizedEholler = verifiedEhollerEmail.trim().toLowerCase();
+
+        if (normalizedGoogle !== normalizedEholler) {
+          console.warn(
+            `[GBP Business Flow] Email mismatch: Google account (${normalizedGoogle}) does not match Eholler business account (${normalizedEholler})`
+          );
+          return failGbp('email_mismatch', {
+            google_email: normalizedGoogle,
+            expected_email: normalizedEholler,
+          });
+        }
+      }
 
       // Persist GBP connection to Neon PostgreSQL isolated under GoogleServiceType.BUSINESS_PROFILE
+      let savedConn: any = null;
       try {
         const orgScope = await getDefaultOrgScope();
         const expiresInSec = Number(tokenRes.data.expires_in) || 3600;
-        await orgScope.saveGoogleConnection({
+        savedConn = await orgScope.saveGoogleConnection({
           service: GoogleServiceType.BUSINESS_PROFILE,
+          userId: currentDbUserId || undefined,
           email: googleEmail,
           googleUserId,
           accessToken: tokenRes.data.access_token,
@@ -136,16 +192,81 @@ export async function GET(req: NextRequest) {
           ],
         });
       } catch (dbErr) {
-        console.warn('Could not persist encrypted GBP Google connection to database (non-fatal):', dbErr);
+        console.warn('Could not persist encrypted GBP Google connection to database:', dbErr);
       }
 
+      // Automatically discover GBP accounts and locations to display in onboarding
+      let discoveredCount = 0;
+      try {
+        const orgScope = await getDefaultOrgScope();
+        const { accounts, locations } = await listAllAccessibleGbpLocations(tokenRes.data.access_token);
+        discoveredCount = locations.length;
+
+        if (savedConn && locations.length > 0) {
+          await orgScope.upsertGbpLocations(
+            savedConn.id,
+            locations.map((l) => ({
+              accountName: l.accountName,
+              accountTitle: l.accountTitle,
+              locationName: l.locationName,
+              locationTitle: l.locationTitle,
+              placeId: l.placeId || undefined,
+              storeCode: l.storeCode || undefined,
+              address: l.address || undefined,
+              phoneNumber: l.phoneNumber || undefined,
+              websiteUri: l.websiteUri || undefined,
+              primaryCategory: l.primaryCategory || undefined,
+            }))
+          );
+
+          // If exactly 1 location discovered, auto-select it for seamless UX
+          if (locations.length === 1) {
+            const singleDbLoc = await prisma.gbpLocation.findFirst({
+              where: {
+                googleConnectionId: savedConn.id,
+                locationName: locations[0].locationName,
+              },
+            });
+            if (singleDbLoc) {
+              await orgScope.selectGbpLocation(singleDbLoc.id);
+            }
+          }
+        }
+      } catch (locErr) {
+        console.warn('Auto-discovery of GBP locations failed (non-fatal, can retry):', locErr);
+      }
+
+      // Direct to Onboarding location selector or Dashboard
+      const redirectUrl = isOnboarding
+        ? redirectOnboarding(req, {
+            status: 'discovered',
+            connected: 'true',
+            matched: isBusinessFlow ? 'true' : 'false',
+            google_email: googleEmail,
+            locations: String(discoveredCount),
+          })
+        : redirectHome(req, {
+            activeTab: 'profile',
+            gbp: 'connected',
+            locations: String(discoveredCount),
+          });
+
+      const success = NextResponse.redirect(redirectUrl);
+      applyGbpTokenCookies(
+        {
+          access_token: tokenRes.data.access_token,
+          refresh_token: tokenRes.data.refresh_token,
+          expires_in: tokenRes.data.expires_in,
+        },
+        success
+      );
+
       success.cookies.set(GBP_COOKIE.state, '', gbpCookieOptions(0));
+      success.cookies.set('gbp_oauth_meta', '', gbpCookieOptions(0));
       return success;
     } catch (err) {
       console.error('Google GBP OAuth callback error:', err);
-      const failure = NextResponse.redirect(redirectHome(req, { activeTab: 'profile', gbp_error: 'token_exchange_failed' }));
-      clearGbpCookies(failure);
-      return failure;
+      return failGbp('token_exchange_failed');
     }
   }
 

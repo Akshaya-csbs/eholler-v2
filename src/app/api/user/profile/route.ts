@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { syncCurrentUser } from '@/lib/auth/user-sync';
+import { classifyUserEmail } from '@/lib/auth/email-classification';
 
 /**
  * GET /api/user/profile
@@ -32,6 +33,11 @@ export async function GET() {
       return NextResponse.json({ error: 'User record not found.' }, { status: 404 });
     }
 
+    const classification = classifyUserEmail(dbUser.email, {
+      accountType: dbUser.accountType,
+      companyName: dbUser.companyName,
+    });
+
     return NextResponse.json({
       success: true,
       profile: {
@@ -43,6 +49,9 @@ export async function GET() {
         jobTitle: dbUser.jobTitle,
         companyName: dbUser.companyName,
         country: dbUser.country,
+        accountType: dbUser.accountType || null,
+        emailClassification: classification.classification,
+        isCustomDomain: classification.isCustomDomain,
         isProfileCompleted: Boolean(dbUser.isProfileCompleted),
       },
     });
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, phoneNumber, jobTitle, companyName, country, avatarUrl } = body;
+    const { name, phoneNumber, jobTitle, companyName, country, avatarUrl, accountType } = body;
 
     // 1. Server-side validation
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
@@ -81,6 +90,8 @@ export async function POST(req: NextRequest) {
     const trimmedCompany = typeof companyName === 'string' ? companyName.trim().slice(0, 120) : null;
     const trimmedCountry = typeof country === 'string' ? country.trim().slice(0, 80) : null;
     const trimmedAvatar = typeof avatarUrl === 'string' && avatarUrl.trim() ? avatarUrl.trim() : null;
+    const normalizedAccountType =
+      accountType === 'BUSINESS' || accountType === 'PERSONAL' ? accountType : undefined;
 
     // 2. Ensure Prisma User is synced
     let dbUser = await prisma.user.findUnique({
@@ -110,6 +121,7 @@ export async function POST(req: NextRequest) {
         companyName: trimmedCompany || null,
         country: trimmedCountry || null,
         avatarUrl: trimmedAvatar || dbUser.avatarUrl,
+        accountType: normalizedAccountType !== undefined ? normalizedAccountType : dbUser.accountType,
         isProfileCompleted: true,
       },
     });

@@ -73,6 +73,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
     companyName?: string | null;
     country?: string | null;
     avatarUrl?: string | null;
+    accountType?: string | null;
+    emailClassification?: 'business' | 'personal';
     isProfileCompleted?: boolean;
   } | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -140,9 +142,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
     }
   }, []);
 
-  const handleConnectGbp = () => {
+  const handleConnectGbp = (prompt?: string) => {
     // Initiate independent Google OAuth for Google Business Profile
-    window.location.href = '/api/connections/google/gbp';
+    const params = new URLSearchParams();
+    if (prompt) params.set('prompt', prompt);
+    if (profileData?.emailClassification === 'business') {
+      params.set('flow', 'business');
+      if (primaryEmail) params.set('login_hint', primaryEmail);
+    } else {
+      params.set('flow', 'personal');
+    }
+    window.location.href = `/api/connections/google/gbp?${params.toString()}`;
   };
 
   const handleDisconnectGbp = async () => {
@@ -332,6 +342,50 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
 
           <div>
             <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Account Classification
+            </div>
+            <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  profileData?.emailClassification === 'business'
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                {profileData?.emailClassification === 'business' ? 'Business Account' : 'Personal Account'}
+              </span>
+              <button
+                onClick={async () => {
+                  const targetType = profileData?.emailClassification === 'business' ? 'PERSONAL' : 'BUSINESS';
+                  try {
+                    await axios.post('/api/user/profile', {
+                      name: profileData?.name || user?.fullName || 'User',
+                      accountType: targetType,
+                    });
+                    setFeedbackMessage({
+                      type: 'success',
+                      text: `Account classification updated to ${targetType === 'BUSINESS' ? 'Business Account' : 'Personal Account'}.`,
+                    });
+                    fetchUserProfile();
+                  } catch (e: any) {
+                    setFeedbackMessage({
+                      type: 'error',
+                      text: 'Failed to update account classification.',
+                    });
+                  }
+                }}
+                className="text-[11px] text-[#C84A22] hover:underline font-semibold"
+              >
+                Switch to {profileData?.emailClassification === 'business' ? 'Personal' : 'Business'}
+              </button>
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">
+              Controls smart onboarding &amp; GBP match flows
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
               Contact Phone
             </div>
             <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -497,7 +551,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </>
               ) : (
                 <button
-                  onClick={handleConnectGbp}
+                  onClick={() => handleConnectGbp()}
                   disabled={gbpLoading}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#C84A22] text-white text-xs font-semibold hover:bg-[#b03e1b] shadow-sm transition disabled:opacity-50"
                 >
