@@ -16,7 +16,13 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware((auth, request) => {
-  if (!isPublicRoute(request)) {
+  // Public report access is strictly limited to GET requests with a valid token
+  const isPublicReportGet =
+    request.method === 'GET' &&
+    (request.nextUrl.pathname.startsWith('/reports/share/') ||
+      /^\/api\/reports\/share\/[^/]+$/.test(request.nextUrl.pathname));
+
+  if (!isPublicRoute(request) && !isPublicReportGet) {
     auth().protect();
   }
 });
