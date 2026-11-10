@@ -4,6 +4,8 @@ import { fetchSearchAnalytics } from '@/lib/gsc-api';
 
 export async function GET(req: NextRequest) {
   const requestedSite = req.nextUrl.searchParams.get('siteUrl')?.trim();
+  const rawDays = parseInt(req.nextUrl.searchParams.get('days') || '28', 10);
+  const days = [7, 28, 90].includes(rawDays) ? rawDays : 28;
   const siteUrl = requestedSite || readSelectedProperty();
 
   if (!siteUrl) {
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const analytics = await fetchSearchAnalytics(accessToken, siteUrl);
+    const analytics = await fetchSearchAnalytics(accessToken, siteUrl, days);
     return NextResponse.json(analytics);
   } catch (err: any) {
     return NextResponse.json(

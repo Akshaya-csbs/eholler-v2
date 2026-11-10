@@ -106,19 +106,22 @@ function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function defaultDateRange(): { startDate: string; endDate: string } {
+function defaultDateRange(days: number = 28): { startDate: string; endDate: string } {
   const end = new Date();
   end.setUTCDate(end.getUTCDate() - 3);
   const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - 27);
+  const dayOffset = Math.max(1, days - 1);
+  start.setUTCDate(start.getUTCDate() - dayOffset);
   return { startDate: isoDate(start), endDate: isoDate(end) };
 }
 
 export async function fetchSearchAnalytics(
   accessToken: string,
-  siteUrl: string
+  siteUrl: string,
+  days: number = 28
 ): Promise<GscAnalyticsResult> {
-  const { startDate, endDate } = defaultDateRange();
+  const validDays = [7, 28, 90].includes(days) ? days : 28;
+  const { startDate, endDate } = defaultDateRange(validDays);
   const endpoint = `${GSC_SITES_URL}/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
 
   const [totalsRes, queriesRes] = await Promise.all([
