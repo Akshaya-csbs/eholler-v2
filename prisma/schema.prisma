@@ -89,6 +89,10 @@ enum RecommendationStatus {
   APPROVED
   REJECTED
   APPLIED
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DISMISSED
 }
 
 // ── Identity & Access Control ────────────────────────────────────────────────
@@ -134,6 +138,7 @@ model Organisation {
   aiRecommendations          AIRecommendation[]
   searchPerformanceSnapshots SearchPerformanceSnapshot[]
   analyticsSnapshots         AnalyticsSnapshot[]
+  sharedReports              SharedReport[]
 
   @@index([slug])
 }
@@ -183,6 +188,7 @@ model Business {
   sourceSnapshots            SourceSnapshot[]
   searchPerformanceSnapshots SearchPerformanceSnapshot[]
   analyticsSnapshots         AnalyticsSnapshot[]
+  sharedReports              SharedReport[]
 
   @@index([organisationId])
   @@index([placeId])
@@ -333,6 +339,7 @@ model AuditRun {
   fieldAudits             GBPFieldAudit[]
   aiRecommendations       AIRecommendation[]
   snapshots               SourceSnapshot[]
+  sharedReports           SharedReport[]
 
   @@index([organisationId])
   @@index([businessId])
@@ -465,3 +472,24 @@ model AnalyticsSnapshot {
   @@index([capturedAt])
 }
 
+model SharedReport {
+  id              String        @id @default(cuid())
+  organisationId  String
+  businessId      String
+  auditRunId      String
+  shareToken      String        @unique @default(cuid())
+  title           String
+  isRevoked       Boolean       @default(false)
+  expiresAt       DateTime?
+  viewCount       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organisation    Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  auditRun        AuditRun      @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+
+  @@index([shareToken])
+  @@index([organisationId])
+  @@index([businessId])
+}

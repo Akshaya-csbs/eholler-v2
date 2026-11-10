@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma';
-import { encryptToken, decryptToken } from '@/lib/security/encryption';
+import { prisma } from '../prisma';
+import { encryptToken, decryptToken } from '../security/encryption';
 import {
   OrgRole,
   BusinessStatus,
@@ -11,6 +11,7 @@ import {
   SeverityLevel,
   EffortLevel,
   GoogleServiceType,
+  RecommendationStatus,
 } from '@prisma/client';
 
 /**
@@ -643,6 +644,195 @@ export function createOrgScope(organisationId: string) {
           data: { isSelected: true },
         }),
       ]);
+    },
+
+    // ── AI Recommendations Management ───────────────────────────────────────
+    async listRecommendations(filters?: {
+      auditRunId?: string;
+      businessId?: string;
+      status?: RecommendationStatus;
+      severity?: SeverityLevel;
+    }) {
+      return prisma.aIRecommendation.findMany({
+        where: {
+          organisationId,
+          ...(filters?.auditRunId ? { auditRunId: filters.auditRunId } : {}),
+          ...(filters?.businessId ? { businessId: filters.businessId } : {}),
+          ...(filters?.status ? { status: filters.status } : {}),
+          ...(filters?.severity ? { severity: filters.severity } : {}),
+        },
+        orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
+        include: {
+          business: true,
+          auditRun: true,
+        },
+      });
+    },
+
+    async updateRecommendationStatus(id: string, status: RecommendationStatus, userId?: string) {
+      const existing = await prisma.aIRecommendation.findFirst({
+        where: { id, organisationId },
+      });
+      if (!existing) {
+        throw new Error('Recommendation not found in this organisation.');
+      }
+
+      return prisma.aIRecommendation.update({
+        where: { id },
+        data: {
+          status,
+          ...(status === RecommendationStatus.APPROVED || status === RecommendationStatus.COMPLETED
+            ? { approvedAt: new Date(), approvedByUserId: userId }
+            : {}),
+        },
+      });
+    },
+
+    // ── Audit History & Progress Comparison ─────────────────────────────────
+    async compareAudits(baseAuditId: string, targetAuditId: string) {
+      const [baseAudit, targetAudit] = await Promise.all([
+        prisma.auditRun.findFirst({
+          where: { id: baseAuditId, organisationId },
+          include: { fieldAudits: true, business: true },
+        }),
+        prisma.auditRun.findFirst({
+          where: { id: targetAuditId, organisationId },
+          include: { fieldAudits: true, business: true },
+        }),
+      ]);
+
+      if (!baseAudit || !targetAudit) {
+        throw new Error('One or both audits were not found in this organisation.');
+      }
+
+      const baseScore = baseAudit.authorityScore ?? 0;
+      const targetScore = targetAudit.authorityScore ?? 0;
+      const scoreDelta = targetScore - baseScore;
+
+      const baseHealth = baseAudit.gbpHealthScore ?? 0;
+      const targetHealth = targetAudit.gbpHealthScore ?? 0;
+      const healthDelta = targetHealth - baseHealth;
+
+      // Map base audit field statuses
+      const baseFieldsMap = new Map<string, string>();
+      for (const f of baseAudit.fieldAudits) {
+        baseFieldsMap.set(f.fieldId, f.status);
+      }
+
+      const resolvedFields: Array<{ fieldId: string; fieldName: string; previousStatus: string; currentStatus: string }> = [];
+      const newIssues: Array<{ fieldId: string; fieldName: string; previousStatus: string; currentStatus: string }> = [];
+      const remainingIssues: Array<{ fieldId: string; fieldName: string; status: string }> = [];
+
+      for (const tf of targetAudit.fieldAudits) {
+        const prevStatus = baseFieldsMap.get(tf.fieldId);
+        const isCurrentGood = tf.status === GBPFieldStatus.NO_CHANGES_REQUIRED;
+        const wasPrevBad = prevStatus === GBPFieldStatus.MISSING || prevStatus === GBPFieldStatus.NEEDS_IMPROVEMENT;
+
+        if (wasPrevBad && isCurrentGood) {
+          resolvedFields.push({
+            fieldId: tf.fieldId,
+            fieldName: tf.fieldName,
+            previousStatus: prevStatus || 'UNKNOWN',
+            currentStatus: tf.status,
+          });
+        } else if (prevStatus === GBPFieldStatus.NO_CHANGES_REQUIRED && !isCurrentGood && tf.status !== GBPFieldStatus.UNABLE_TO_VERIFY) {
+          newIssues.push({
+            fieldId: tf.fieldId,
+            fieldName: tf.fieldName,
+            previousStatus: prevStatus,
+            currentStatus: tf.status,
+          });
+        } else if (wasPrevBad && !isCurrentGood) {
+          remainingIssues.push({
+            fieldId: tf.fieldId,
+            fieldName: tf.fieldName,
+            status: tf.status,
+          });
+        }
+      }
+
+      return {
+        baseAudit: {
+          id: baseAudit.id,
+          createdAt: baseAudit.createdAt,
+          authorityScore: baseScore,
+          gbpHealthScore: baseHealth,
+        },
+        targetAudit: {
+          id: targetAudit.id,
+          createdAt: targetAudit.createdAt,
+          authorityScore: targetScore,
+          gbpHealthScore: targetHealth,
+        },
+        deltas: {
+          scoreDelta,
+          healthDelta,
+        },
+        resolvedFields,
+        newIssues,
+        remainingIssues,
+      };
+    },
+
+    // ── Secure Shared Reports ───────────────────────────────────────────────
+    async createSharedReport(input: {
+      businessId: string;
+      auditRunId: string;
+      title: string;
+      expiresAt?: Date;
+    }) {
+      // Validate ownership of both business and auditRun
+      const [biz, audit] = await Promise.all([
+        prisma.business.findFirst({ where: { id: input.businessId, organisationId } }),
+        prisma.auditRun.findFirst({ where: { id: input.auditRunId, organisationId } }),
+      ]);
+
+      if (!biz || !audit) {
+        throw new Error('Business or Audit does not belong to this organisation.');
+      }
+
+      // Generate a cryptographically secure 64-hex-character token (256 bits entropy)
+      const crypto = await import('crypto');
+      const shareToken = crypto.randomBytes(32).toString('hex');
+
+      return prisma.sharedReport.create({
+        data: {
+          organisationId,
+          businessId: input.businessId,
+          auditRunId: input.auditRunId,
+          title: input.title,
+          shareToken,
+          expiresAt: input.expiresAt,
+        },
+      });
+    },
+
+    async listSharedReports(businessId?: string) {
+      return prisma.sharedReport.findMany({
+        where: {
+          organisationId,
+          ...(businessId ? { businessId } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          business: true,
+          auditRun: true,
+        },
+      });
+    },
+
+    async revokeSharedReport(reportId: string) {
+      const existing = await prisma.sharedReport.findFirst({
+        where: { id: reportId, organisationId },
+      });
+      if (!existing) {
+        throw new Error('Report not found in this organisation.');
+      }
+
+      return prisma.sharedReport.update({
+        where: { id: reportId },
+        data: { isRevoked: true },
+      });
     },
   };
 }
