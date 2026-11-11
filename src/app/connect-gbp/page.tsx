@@ -195,7 +195,7 @@ export default function ConnectGbpOnboardingPage() {
       });
 
       if (res.data?.success) {
-        router.push('/');
+        router.push('/dashboard');
       } else {
         setSaveError(res.data?.error || 'Failed to link selected location.');
       }
@@ -208,7 +208,7 @@ export default function ConnectGbpOnboardingPage() {
   };
 
   const handleSkip = () => {
-    router.push('/');
+    router.push('/dashboard');
   };
 
   const handlePersonalConnect = () => {

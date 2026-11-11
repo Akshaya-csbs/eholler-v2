@@ -50,7 +50,7 @@ export default function CompleteProfilePage() {
         if (p) {
           if (p.isProfileCompleted) {
             // Already completed, redirect to dashboard
-            router.push('/');
+            router.push('/dashboard');
             return;
           }
           if (p.name) setFullName(p.name);

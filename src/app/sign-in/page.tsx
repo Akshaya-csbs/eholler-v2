@@ -42,7 +42,7 @@ export default function SignInPage() {
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
-        router.push('/');
+        router.push('/dashboard');
       } else {
         setError('Sign in requires additional verification steps.');
       }
@@ -76,7 +76,7 @@ export default function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrlComplete: '/dashboard',
       });
     } catch (err: any) {
       console.error('Google sign in error:', err);

@@ -5,6 +5,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
  * All authentication pages, OAuth callbacks, and the existing Google OAuth callback are public.
  */
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/verify-email(.*)',
