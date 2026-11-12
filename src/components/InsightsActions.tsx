@@ -120,7 +120,7 @@ function RecommendationCard({ rec, index }: { rec: StructuredRecommendation; ind
           {rec.suggestedContent && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Suggested Content (Draft — Review Before Using)</div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Suggested Content (Draft: Review Before Using)</div>
                 <button
                   onClick={handleCopySuggested}
                   className="text-[10px] font-semibold text-orange-600 hover:text-orange-800 flex items-center gap-1 transition"

@@ -34,7 +34,7 @@ const ERROR_COPY: Record<string, string> = {
   access_denied: 'Google authorization was cancelled. No Search Console data was connected.',
   google_oauth_error: 'Google returned an OAuth error. Check the client ID, secret, and redirect URI.',
   missing_code: 'Google did not return an authorization code. Try connecting again.',
-  invalid_state: 'The OAuth state check failed. This can happen if the login expired — try connecting again.',
+  invalid_state: 'The OAuth state check failed. This can happen if the login expired. Please try connecting again.',
   token_exchange_failed: 'Could not complete Google authorization. Confirm the redirect URI matches Google Cloud exactly.',
 };
 

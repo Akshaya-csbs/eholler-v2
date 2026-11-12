@@ -10,7 +10,6 @@ import {
   BarChart3,
   Star,
   ArrowRight,
-  Sparkles,
   Phone,
   Navigation,
   Globe,
@@ -35,13 +34,7 @@ export function HeroSection() {
           {/* =============================================================== */}
           {/* LEFT SIDE: Copy & Features & CTA                                */}
           {/* =============================================================== */}
-          <div className="lg:col-span-6 flex flex-col items-start text-left">
-            
-            {/* Small Introductory Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EBF2FA] border border-[#D5E3F5] text-[#3478C9] text-xs font-semibold tracking-wide mb-6 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-[#3478C9]" />
-              <span>Grow Your Business Locally</span>
-            </div>
+          <div className="lg:col-span-6 flex flex-col items-start text-left pt-2 lg:pt-4">
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-black text-[#102D50] tracking-tight leading-[1.12] mb-6">
@@ -53,7 +46,7 @@ export function HeroSection() {
 
             {/* Supporting Description */}
             <p className="text-lg sm:text-xl text-[#5F7188] font-normal leading-relaxed mb-8 max-w-xl">
-              Connect your Google Business Profile and unlock powerful Local SEO insights — all in one easy-to-use platform.
+              Connect your Google Business Profile and unlock powerful Local SEO insights in one easy-to-use platform.
             </p>
 
             {/* Four Horizontal Feature Highlights */}

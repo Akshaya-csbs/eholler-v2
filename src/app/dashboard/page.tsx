@@ -344,7 +344,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2.5">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                 <span className="font-medium">
-                  Session sync failed: {syncError || 'Unknown error'}. Your work is safe — please retry.
+                  Session sync failed: {syncError || 'Unknown error'}. Your work is safe. Please retry.
                 </span>
               </div>
               <button

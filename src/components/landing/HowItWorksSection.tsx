@@ -38,12 +38,10 @@ export function HowItWorksSection() {
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 lg:mb-20">
-          <div className="inline-flex items-center justify-center gap-2 mb-3">
-            <span className="w-6 h-[1.5px] bg-[#3478C9]"></span>
-            <span className="text-xs font-bold uppercase tracking-widest text-[#3478C9]">
-              SIMPLE 3-STEP PROCESS
+          <div className="inline-block mb-3">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#3478C9]">
+              Simple 3-Step Process
             </span>
-            <span className="w-6 h-[1.5px] bg-[#3478C9]"></span>
           </div>
           
           <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-4">
@@ -51,7 +49,7 @@ export function HowItWorksSection() {
           </h2>
           
           <p className="text-base sm:text-lg text-[#65748A] leading-relaxed">
-            Get started in three simple steps — no technical experience required.
+            Get started in three simple steps with no technical experience required.
           </p>
         </div>
 

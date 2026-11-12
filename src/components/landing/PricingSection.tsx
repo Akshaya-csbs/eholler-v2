@@ -68,12 +68,10 @@ export function PricingSection() {
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center justify-center gap-2 mb-3">
-            <span className="w-6 h-[1.5px] bg-[#3478C9]"></span>
-            <span className="text-xs font-bold uppercase tracking-widest text-[#3478C9]">
-              TRANSPARENT PRICING
+          <div className="inline-block mb-3">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#3478C9]">
+              Transparent Pricing
             </span>
-            <span className="w-6 h-[1.5px] bg-[#3478C9]"></span>
           </div>
           
           <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-4">
