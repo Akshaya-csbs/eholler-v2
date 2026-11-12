@@ -74,6 +74,12 @@ export function LandingNavbar() {
               Resources
               <ChevronDown className="w-3.5 h-3.5 text-[#65748A]" />
             </a>
+            <a
+              href="#contact"
+              className="text-[15px] font-medium text-[#172B45] hover:text-[#3478C9] transition-colors duration-150"
+            >
+              Contact
+            </a>
           </nav>
 
           {/* Right Action Buttons */}
@@ -158,6 +164,13 @@ export function LandingNavbar() {
               className="px-3 py-2 rounded-lg text-base font-medium text-[#172B45] hover:bg-[#EFE8DC]"
             >
               Resources
+            </a>
+            <a
+              href="#contact"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-lg text-base font-medium text-[#172B45] hover:bg-[#EFE8DC]"
+            >
+              Contact
             </a>
           </nav>
           

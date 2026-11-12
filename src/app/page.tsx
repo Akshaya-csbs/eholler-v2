@@ -6,13 +6,14 @@ import { WaveDivider } from '@/components/landing/WaveDivider';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { PricingSection } from '@/components/landing/PricingSection';
+import { ContactSection } from '@/components/landing/ContactSection';
 import { FinalCtaSection } from '@/components/landing/FinalCtaSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
 export const metadata: Metadata = {
   title: 'Eholler Local SEO | Dominate Local Search & Grow Your Business',
   description:
-    'Connect your Google Business Profile and unlock powerful Local SEO insights, rank tracking, and AI-powered recommendations — all in one easy-to-use platform.',
+    'Connect your Google Business Profile and unlock powerful Local SEO insights, rank tracking, and AI-powered recommendations in one easy-to-use platform.',
 };
 
 export default function HomePage() {
@@ -35,6 +36,9 @@ export default function HomePage() {
 
       {/* Transparent Pricing Plans */}
       <PricingSection />
+
+      {/* Contact & Corporate Headquarters */}
+      <ContactSection />
 
       {/* Final High-Converting CTA Banner */}
       <FinalCtaSection />
