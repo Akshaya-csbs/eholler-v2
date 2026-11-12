@@ -1,14 +1,25 @@
 import React from 'react';
 import Link from 'next/link';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  ExternalLink,
+  Clock,
+  ShieldCheck,
+} from 'lucide-react';
 
 export function LandingFooter() {
   return (
     <footer className="bg-[#102D50] text-[#DCE8F6] pt-16 pb-12 border-t border-[#1C3E68]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-[#1F4572]">
+
+        {/* Main Footer Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-[#1F4572]">
           
-          {/* Brand Info (2 cols) */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Brand & Corporate Entity (4 cols on lg) */}
+          <div className="lg:col-span-4 space-y-4">
             <Link href="/" className="flex items-center gap-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-white text-[#102D50] flex items-center justify-center font-bold shadow-md">
                 <svg
@@ -37,25 +48,29 @@ export function LandingFooter() {
               </div>
             </Link>
 
+            <p className="text-xs font-semibold text-[#8FB4DF] tracking-wide uppercase">
+              eholler Digital Services Private Limited
+            </p>
+
             <p className="text-sm text-[#94A9C4] leading-relaxed max-w-sm">
               AI-powered Local SEO management platform helping local businesses, multi-location brands, and agencies dominate Google Search and Maps.
             </p>
 
-            <div className="flex items-center gap-3 pt-2 text-xs text-[#94A9C4]">
+            <div className="flex items-center gap-2.5 pt-2 text-xs text-[#94A9C4]">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
               <span>All Systems Operational • Google API Active</span>
             </div>
           </div>
 
-          {/* Product Links */}
-          <div className="space-y-3">
+          {/* Product Links (2 cols on lg) */}
+          <div className="lg:col-span-2 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">
               Product
             </h4>
             <ul className="space-y-2 text-sm text-[#94A9C4]">
               <li>
                 <a href="#features" className="hover:text-white transition-colors">
-                  Local Rank Tracking
+                  Rank Tracking
                 </a>
               </li>
               <li>
@@ -81,8 +96,8 @@ export function LandingFooter() {
             </ul>
           </div>
 
-          {/* Navigation & Resources */}
-          <div className="space-y-3">
+          {/* Company & Resources (2 cols on lg) */}
+          <div className="lg:col-span-2 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">
               Company
             </h4>
@@ -98,51 +113,89 @@ export function LandingFooter() {
                 </a>
               </li>
               <li>
-                <Link href="/sign-in" className="hover:text-white transition-colors">
-                  Client Portal
-                </Link>
+                <a href="#contact" className="hover:text-white transition-colors">
+                  Contact Us
+                </a>
               </li>
               <li>
-                <Link href="/connect-gbp" className="hover:text-white transition-colors">
-                  Connect Google Profile
+                <a
+                  href="https://eholler.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center gap-1.5"
+                >
+                  <span>eholler.in</span>
+                  <ExternalLink className="w-3 h-3 text-[#60A5FA]" />
+                </a>
+              </li>
+              <li>
+                <Link href="/sign-in" className="hover:text-white transition-colors">
+                  Client Portal
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Legal */}
-          <div className="space-y-3">
+          {/* Corporate Headquarters & Direct Contact (4 cols on lg) */}
+          <div className="lg:col-span-4 space-y-3.5">
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">
-              Legal & Trust
+              Headquarters & Contact
             </h4>
-            <ul className="space-y-2 text-sm text-[#94A9C4]">
-              <li>
-                <Link href="/terms" className="hover:text-white transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <span className="text-[#657E9E]">Security & Privacy</span>
-              </li>
-              <li>
-                <span className="text-[#657E9E]">GDPR & CCPA</span>
-              </li>
-            </ul>
+
+            <div className="space-y-2.5 text-xs text-[#94A9C4]">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-[#60A5FA] shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  <strong className="text-[#C2D6EE] block font-semibold">eholler Digital Services Pvt. Ltd.</strong>
+                  New No. 9, Old No. 6/3, 4th Street, Venkateswara Nagar, Adyar, Chennai, Tamil Nadu - 600020, India
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-1">
+                <Phone className="w-4 h-4 text-[#60A5FA] shrink-0" />
+                <a href="tel:+919791074290" className="text-white hover:text-[#60A5FA] font-medium transition-colors">
+                  +91 97910 74290
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-[#60A5FA] shrink-0" />
+                <a href="mailto:info@eholler.in" className="text-white hover:text-[#60A5FA] font-medium transition-colors">
+                  info@eholler.in
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <Globe className="w-4 h-4 text-[#60A5FA] shrink-0" />
+                <a
+                  href="https://eholler.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
+                  https://eholler.in
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2.5 text-[11px] text-[#7B94B2] pt-1">
+                <Clock className="w-3.5 h-3.5 text-[#60A5FA] shrink-0" />
+                <span>Mon - Sat: 9:00 AM - 6:00 PM IST</span>
+              </div>
+            </div>
           </div>
 
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#7B94B2] gap-4">
-          <p>© {new Date().getFullYear()} Eholler Local SEO. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} eholler Digital Services Private Limited. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <span>Built for Modern Businesses</span>
-            <span>•</span>
+            <Link href="/terms" className="hover:text-white transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">
+              Privacy Policy
+            </Link>
             <span>Google Business Profile Compatible</span>
           </div>
         </div>
@@ -151,4 +204,3 @@ export function LandingFooter() {
     </footer>
   );
 }
-
