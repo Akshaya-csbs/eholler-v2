@@ -6,7 +6,6 @@ import { WaveDivider } from '@/components/landing/WaveDivider';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { PricingSection } from '@/components/landing/PricingSection';
-import { ContactSection } from '@/components/landing/ContactSection';
 import { FinalCtaSection } from '@/components/landing/FinalCtaSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
@@ -36,9 +35,6 @@ export default function HomePage() {
 
       {/* Transparent Pricing Plans */}
       <PricingSection />
-
-      {/* Contact & Corporate Headquarters */}
-      <ContactSection />
 
       {/* Final High-Converting CTA Banner */}
       <FinalCtaSection />

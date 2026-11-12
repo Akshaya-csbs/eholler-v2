@@ -12,11 +12,11 @@ import {
 
 export function LandingFooter() {
   return (
-    <footer className="bg-[#102D50] text-[#DCE8F6] pt-16 pb-12 border-t border-[#1C3E68]">
+    <footer id="contact" className="bg-[#102D50] text-[#DCE8F6] pt-12 pb-10 border-t border-[#1C3E68] scroll-mt-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Main Footer Columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-[#1F4572]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 pb-10 border-b border-[#1F4572]">
           
           {/* Brand & Corporate Entity (4 cols on lg) */}
           <div className="lg:col-span-4 space-y-4">
@@ -187,7 +187,7 @@ export function LandingFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#7B94B2] gap-4">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-[#7B94B2] gap-4">
           <p>© {new Date().getFullYear()} eholler Digital Services Private Limited. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <Link href="/terms" className="hover:text-white transition-colors">
