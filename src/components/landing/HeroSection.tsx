@@ -23,21 +23,21 @@ export function HeroSection() {
   const { isSignedIn } = useUser();
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-14 lg:pb-24 bg-[#F7F1E7]">
+    <section className="relative overflow-hidden pt-6 pb-12 lg:pt-10 lg:pb-16 bg-[#F7F1E7]">
       {/* Background ambient lighting effects */}
       <div className="absolute top-10 left-1/4 w-96 h-96 bg-[#3478C9]/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-[#DCE8F6]/40 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
           
           {/* =============================================================== */}
           {/* LEFT SIDE: Copy & Features & CTA                                */}
           {/* =============================================================== */}
-          <div className="lg:col-span-6 flex flex-col items-start text-left pt-2 lg:pt-4">
+          <div className="lg:col-span-6 flex flex-col items-start text-left pt-1 lg:pt-2">
 
             {/* Main Heading */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-black text-[#102D50] tracking-tight leading-[1.12] mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-black text-[#102D50] tracking-tight leading-[1.12] mb-4">
               Dominate Local Search.{' '}
               <span className="text-[#3478C9] block mt-1">
                 Grow Your Business.
@@ -45,12 +45,12 @@ export function HeroSection() {
             </h1>
 
             {/* Supporting Description */}
-            <p className="text-lg sm:text-xl text-[#5F7188] font-normal leading-relaxed mb-8 max-w-xl">
+            <p className="text-base sm:text-lg text-[#5F7188] font-normal leading-relaxed mb-6 max-w-xl">
               Connect your Google Business Profile and unlock powerful Local SEO insights in one easy-to-use platform.
             </p>
 
             {/* Four Horizontal Feature Highlights */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-2 w-full py-4 mb-9 border-y border-[#E8DEC9]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-2 w-full py-3 mb-6 border-y border-[#E8DEC9]">
               
               {/* Feature 1 */}
               <div className="flex flex-col items-start gap-2 pr-2 sm:border-r sm:border-[#E8DEC9]">

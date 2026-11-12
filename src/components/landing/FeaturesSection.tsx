@@ -56,18 +56,18 @@ export function FeaturesSection() {
   ];
 
   return (
-    <section id="features" className="py-20 lg:py-28 bg-[#FCF9F3] relative">
+    <section id="features" className="py-14 lg:py-20 bg-[#FCF9F3] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-block mb-3">
+        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-12">
+          <div className="inline-block mb-2.5">
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#3478C9]">
               Powerful Features
             </span>
           </div>
           
-          <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-3">
             Everything You Need for Local SEO Success
           </h2>
           

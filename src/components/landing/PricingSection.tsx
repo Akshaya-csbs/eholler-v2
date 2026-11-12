@@ -63,22 +63,22 @@ export function PricingSection() {
   ];
 
   return (
-    <section id="pricing" className="py-20 lg:py-28 bg-[#FCF9F3] border-t border-[#EBE1D1] relative">
+    <section id="pricing" className="py-14 lg:py-20 bg-[#FCF9F3] border-t border-[#EBE1D1] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-block mb-3">
+        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-12">
+          <div className="inline-block mb-2.5">
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#3478C9]">
               Transparent Pricing
             </span>
           </div>
           
-          <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-black text-[#102D50] tracking-tight leading-tight mb-3">
             Simple Plans Built for Local Growth
           </h2>
           
-          <p className="text-base sm:text-lg text-[#65748A] leading-relaxed mb-8">
+          <p className="text-base sm:text-lg text-[#65748A] leading-relaxed mb-6">
             Every plan includes a 14-day free trial. No credit card required to start.
           </p>
 
